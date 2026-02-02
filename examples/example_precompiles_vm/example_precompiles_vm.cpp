@@ -81,9 +81,6 @@ qrvmc_result execute(qrvmc_vm* /*vm*/,
         return execute_identity(msg);
 
     case 0x0005:  // EXPMOD
-    case 0x0006:  // BNADD
-    case 0x0007:  // BNMUL
-    case 0x0008:  // BNPAIRING
         return not_implemented();
 
     default:  // As if empty code was executed.
