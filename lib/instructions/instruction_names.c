@@ -4,7 +4,7 @@
 
 #include <qrvmc/instructions.h>
 
-static const char* shanghai_names[256] = {
+static const char* zond_names[256] = {
     /* 0x00 */ "STOP",
     /* 0x01 */ "ADD",
     /* 0x02 */ "MUL",
@@ -265,9 +265,9 @@ static const char* shanghai_names[256] = {
 
 const char* const* qrvmc_get_instruction_names_table(enum qrvmc_revision revision)
 {
-    if (revision == QRVMC_SHANGHAI)
+    if (revision == QRVMC_ZOND)
     {
-        return shanghai_names;
+        return zond_names;
     }
     else
     {
@@ -278,8 +278,8 @@ const char* const* qrvmc_get_instruction_names_table(enum qrvmc_revision revisio
     /*
     switch (revision)
     {
-    case QRVMC_SHANGHAI:
-        return shanghai_names;
+    case QRVMC_ZOND:
+        return zond_names;
     default:
         return NULL;
     }

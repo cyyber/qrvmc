@@ -36,7 +36,7 @@ add_qrvmc_tool_test(
 add_qrvmc_tool_test(
     default_revision
     "--vm $<TARGET_FILE:qrvmc::example-vm> run 00"
-    "Executing on Shanghai"
+    "Executing on Zond"
 )
 
 add_qrvmc_tool_test(

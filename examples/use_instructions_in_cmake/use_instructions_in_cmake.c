@@ -8,5 +8,5 @@
 
 int main()
 {
-    return qrvmc_get_instruction_metrics_table(QRVMC_SHANGHAI)[OP_STOP].gas_cost;
+    return qrvmc_get_instruction_metrics_table(QRVMC_ZOND)[OP_STOP].gas_cost;
 }
