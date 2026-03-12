@@ -613,7 +613,7 @@ TEST(cpp, vm_execute_with_null_host)
 
     auto vm = qrvmc::VM{qrvmc_create_example_vm()};
     const qrvmc_message msg{};
-    auto res = vm.execute(host, QRVMC_SHANGHAI, msg, nullptr, 0);
+    auto res = vm.execute(host, QRVMC_ZOND, msg, nullptr, 0);
     EXPECT_EQ(res.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(res.gas_left, 0);
 }
@@ -875,7 +875,7 @@ TEST(cpp, revision_to_string)
         NAME, #NAME     \
     }
     constexpr TestCase test_cases[]{
-        TEST_CASE(QRVMC_SHANGHAI),
+        TEST_CASE(QRVMC_ZOND),
     };
 #undef TEST_CASE
 

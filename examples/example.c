@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
         .depth = 0,
     };
     struct qrvmc_result result =
-        qrvmc_execute(vm, host, ctx, QRVMC_SHANGHAI, &msg, code, code_size);
+        qrvmc_execute(vm, host, ctx, QRVMC_ZOND, &msg, code, code_size);
     printf("Execution result:\n");
     int exit_code = 0;
     if (result.status_code != QRVMC_SUCCESS)

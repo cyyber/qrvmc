@@ -14,7 +14,7 @@ inline bool operator==(const qrvmc_instruction_metrics& a,
 
 TEST(instructions, name_gas_cost_equivalence)
 {
-    for (auto r = int{QRVMC_SHANGHAI}; r <= QRVMC_MAX_REVISION; ++r)
+    for (auto r = int{QRVMC_ZOND}; r <= QRVMC_MAX_REVISION; ++r)
     {
         const auto rev = static_cast<qrvmc_revision>(r);
         const auto names = qrvmc_get_instruction_names_table(rev);
@@ -33,11 +33,11 @@ TEST(instructions, name_gas_cost_equivalence)
     }
 }
 
-TEST(instructions, shanghai_hard_fork)
+TEST(instructions, zond_hard_fork)
 {
-    const auto s = qrvmc_get_instruction_metrics_table(QRVMC_SHANGHAI);
+    const auto s = qrvmc_get_instruction_metrics_table(QRVMC_ZOND);
     // const auto p = qrvmc_get_instruction_metrics_table(QRVMC_PARIS);
-    const auto sn = qrvmc_get_instruction_names_table(QRVMC_SHANGHAI);
+    const auto sn = qrvmc_get_instruction_names_table(QRVMC_ZOND);
     // const auto pn = qrvmc_get_instruction_names_table(QRVMC_PARIS);
 
     // NOTE(rgeraldes24): unused for now

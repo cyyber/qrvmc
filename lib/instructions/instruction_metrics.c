@@ -33,7 +33,7 @@ enum
     WARM_STORAGE_READ_COST = 100
 };
 
-static struct qrvmc_instruction_metrics shanghai_metrics[256] = {
+static struct qrvmc_instruction_metrics zond_metrics[256] = {
     /*           STOP = 0x00 */ {ZERO, 0, 0},
     /*            ADD = 0x01 */ {VERYLOW, 2, -1},
     /*            MUL = 0x02 */ {LOW, 2, -1},
@@ -295,9 +295,9 @@ static struct qrvmc_instruction_metrics shanghai_metrics[256] = {
 const struct qrvmc_instruction_metrics* qrvmc_get_instruction_metrics_table(
     enum qrvmc_revision revision)
 {
-    if (revision == QRVMC_SHANGHAI)
+    if (revision == QRVMC_ZOND)
     {
-        return shanghai_metrics;
+        return zond_metrics;
     }
     else
     {
@@ -308,8 +308,8 @@ const struct qrvmc_instruction_metrics* qrvmc_get_instruction_metrics_table(
     /*
     switch (revision)
     {
-    case QRVMC_SHANGHAI:
-        return shanghai_metrics;
+    case QRVMC_ZOND:
+        return zond_metrics;
     default:
         return NULL;
     }
