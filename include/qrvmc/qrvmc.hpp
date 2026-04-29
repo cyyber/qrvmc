@@ -35,21 +35,16 @@ struct address : qrvmc_address
 
     /// Converting constructor from unsigned integer value.
     ///
-    /// This constructor assigns the @p v value to the last 8 bytes [12:19]
-    /// in big-endian order.
+    /// After the 48-byte-address migration this constructor assigns the
+    /// @p v value to the last 8 bytes [40:47] in big-endian order so the
+    /// integer ends up right-aligned in the 48-byte container (mirroring
+    /// the layout produced by parsing a short Q-prefixed hex literal).
     constexpr explicit address(uint64_t v) noexcept
-      : qrvmc_address{{0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
+      : qrvmc_address{{0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
                        static_cast<uint8_t>(v >> 56),
                        static_cast<uint8_t>(v >> 48),
                        static_cast<uint8_t>(v >> 40),
