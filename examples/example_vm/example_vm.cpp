@@ -132,12 +132,12 @@ inline qrvmc_uint256be to_uint256(uint32_t x)
     return value;
 }
 
-/// Creates 256-bit value out of an 160-bit address.
+/// Creates a 256-bit value from the low 32 bytes of a 384-bit QRL address.
 inline qrvmc_uint256be to_uint256(qrvmc_address address)
 {
     qrvmc_uint256be value = {};
-    size_t offset = sizeof(value) - sizeof(address);
-    std::memcpy(&value.bytes[offset], address.bytes, sizeof(address.bytes));
+    size_t offset = sizeof(address) - sizeof(value);
+    std::memcpy(value.bytes, &address.bytes[offset], sizeof(value.bytes));
     return value;
 }
 
@@ -148,12 +148,12 @@ inline uint32_t to_uint32(qrvmc_uint256be value)
            (uint32_t{value.bytes[30]} << 8) | (uint32_t{value.bytes[31]});
 }
 
-/// Truncates 256-bit value to 160-bit address.
+/// Converts a 256-bit value to a QRL address, right-aligned in the 384-bit field.
 inline qrvmc_address to_address(qrvmc_uint256be value)
 {
     qrvmc_address address = {};
-    size_t offset = sizeof(value) - sizeof(address);
-    std::memcpy(address.bytes, &value.bytes[offset], sizeof(address.bytes));
+    size_t offset = sizeof(address) - sizeof(value);
+    std::memcpy(&address.bytes[offset], value.bytes, sizeof(value.bytes));
     return address;
 }
 
