@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning].
 
 ### Breaking changes
 
-The QRVMC ABI bumps from 1 to 2 for the 48-byte-address / 512-bit-word
+The QRVMC ABI bumps from 1 to 2 for the 64-byte-address / 512-bit-word
 Zond migration. VMs built against `QRVMC_ABI_VERSION = 1` are binary
 incompatible with hosts built against this release and vice versa.
 
