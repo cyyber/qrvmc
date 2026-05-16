@@ -70,9 +70,9 @@ TEST_F(example_vm, empty_code)
 TEST_F(example_vm, push)
 {
     // Yul:
-    // mstore(0, 0xd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef) return(0, 32)
+    // mstore(0, 0xd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef) return(32, 32)
     const auto r = execute_in_example_vm(
-        10, "7fd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef60005260206000f3");
+        10, "7fd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef60005260206020f3");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, 4);
     EXPECT_EQ(r, Output("d0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef"));
@@ -80,11 +80,12 @@ TEST_F(example_vm, push)
 
 TEST_F(example_vm, return_address)
 {
-    // Yul: mstore(0, address()) return(12, 20)
-    const auto r = execute_in_example_vm(6, "306000526014600cf3");
+    // Yul: mstore(0, address()) return(0, 64)
+    const auto r = execute_in_example_vm(6, "3060005260406000f3");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, 0);
-    EXPECT_EQ(r, Output("d00000000000000000000000000000000000000d"));
+    EXPECT_EQ(r,
+        Output("0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d00000000000000000000000000000000000000d"));
 }
 
 TEST_F(example_vm, counter_in_storage)
@@ -107,7 +108,8 @@ TEST_F(example_vm, return_block_number)
     const auto r = execute_in_example_vm(7, "43600052596000f3");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, 1);
-    EXPECT_EQ(r, Output("00000000000000000000000000000000000000000000000000000000000000b4"));
+    EXPECT_EQ(r,
+        Output("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b4"));
 }
 
 TEST_F(example_vm, return_out_of_memory)
@@ -130,12 +132,13 @@ TEST_F(example_vm, revert_out_of_memory)
 
 TEST_F(example_vm, revert_block_number)
 {
-    // Yul: mstore(0, number()) revert(0, 32)
+    // Yul: mstore(0, number()) revert(0, 64)
     host.tx_context.block_number = 0xb4;
-    const auto r = execute_in_example_vm(7, "4360005260206000fd");
+    const auto r = execute_in_example_vm(7, "4360005260406000fd");
     EXPECT_EQ(r.status_code, QRVMC_REVERT);
     EXPECT_EQ(r.gas_left, 1);
-    EXPECT_EQ(r, Output("00000000000000000000000000000000000000000000000000000000000000b4"));
+    EXPECT_EQ(r,
+        Output("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b4"));
 }
 
 TEST_F(example_vm, call)
@@ -144,7 +147,7 @@ TEST_F(example_vm, call)
     const auto expected_output = qrvmc::from_hex("aabbcc").value();
     host.call_result.output_data = expected_output.data();
     host.call_result.output_size = expected_output.size();
-    const auto r = execute_in_example_vm(100, "6003808080808080f1596000f3");
+    const auto r = execute_in_example_vm(100, "6003600360036003600360036003f1596000f3");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, 89);
     EXPECT_EQ(r, Output("000000aabbcc"));
@@ -166,7 +169,8 @@ TEST_F(example_vm, calldataload_full)
         "4444000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, 0);
-    EXPECT_EQ(r, Output("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"));
+    EXPECT_EQ(r,
+        Output("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f0000000000000000000000000000000000000000000000000000000000000000"));
 }
 
 TEST_F(example_vm, calldataload_partial)
@@ -175,7 +179,8 @@ TEST_F(example_vm, calldataload_partial)
     const auto r = execute_in_example_vm(7, "600035600052596000f3", "aabbccdd");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, 0);
-    EXPECT_EQ(r, Output("aabbccdd00000000000000000000000000000000000000000000000000000000"));
+    EXPECT_EQ(r,
+        Output("aabbccdd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
 }
 
 TEST_F(example_vm, calldataload_empty)
@@ -184,7 +189,8 @@ TEST_F(example_vm, calldataload_empty)
     const auto r = execute_in_example_vm(7, "600435600052596000f3", "aabbccdd");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, 0);
-    EXPECT_EQ(r, Output("0000000000000000000000000000000000000000000000000000000000000000"));
+    EXPECT_EQ(r,
+        Output("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
 }
 
 TEST_F(example_vm, mstore_out_of_memory)

@@ -125,35 +125,33 @@ struct Memory
 inline qrvmc_uint256be to_uint256(uint32_t x)
 {
     qrvmc_uint256be value = {};
-    value.bytes[31] = static_cast<uint8_t>(x);
-    value.bytes[30] = static_cast<uint8_t>(x >> 8);
-    value.bytes[29] = static_cast<uint8_t>(x >> 16);
-    value.bytes[28] = static_cast<uint8_t>(x >> 24);
+    value.bytes[63] = static_cast<uint8_t>(x);
+    value.bytes[62] = static_cast<uint8_t>(x >> 8);
+    value.bytes[61] = static_cast<uint8_t>(x >> 16);
+    value.bytes[60] = static_cast<uint8_t>(x >> 24);
     return value;
 }
 
-/// Creates a 256-bit value from the low 32 bytes of a 384-bit QRL address.
+/// Creates a 512-bit value from the full 64-byte QRL address.
 inline qrvmc_uint256be to_uint256(qrvmc_address address)
 {
     qrvmc_uint256be value = {};
-    size_t offset = sizeof(address) - sizeof(value);
-    std::memcpy(value.bytes, &address.bytes[offset], sizeof(value.bytes));
+    std::memcpy(value.bytes, address.bytes, sizeof(value.bytes));
     return value;
 }
 
 /// Truncates 256-bit value to 32-bit value.
 inline uint32_t to_uint32(qrvmc_uint256be value)
 {
-    return (uint32_t{value.bytes[28]} << 24) | (uint32_t{value.bytes[29]} << 16) |
-           (uint32_t{value.bytes[30]} << 8) | (uint32_t{value.bytes[31]});
+    return (uint32_t{value.bytes[60]} << 24) | (uint32_t{value.bytes[61]} << 16) |
+           (uint32_t{value.bytes[62]} << 8) | (uint32_t{value.bytes[63]});
 }
 
-/// Converts a 256-bit value to a QRL address, right-aligned in the 384-bit field.
+/// Converts a 512-bit value to a QRL address.
 inline qrvmc_address to_address(qrvmc_uint256be value)
 {
     qrvmc_address address = {};
-    size_t offset = sizeof(address) - sizeof(value);
-    std::memcpy(&address.bytes[offset], value.bytes, sizeof(value.bytes));
+    std::memcpy(address.bytes, value.bytes, sizeof(address.bytes));
     return address;
 }
 
@@ -294,6 +292,38 @@ qrvmc_result execute(qrvmc_vm* instance,
         case OP_PUSH30:
         case OP_PUSH31:
         case OP_PUSH32:
+        case OP_PUSH33:
+        case OP_PUSH34:
+        case OP_PUSH35:
+        case OP_PUSH36:
+        case OP_PUSH37:
+        case OP_PUSH38:
+        case OP_PUSH39:
+        case OP_PUSH40:
+        case OP_PUSH41:
+        case OP_PUSH42:
+        case OP_PUSH43:
+        case OP_PUSH44:
+        case OP_PUSH45:
+        case OP_PUSH46:
+        case OP_PUSH47:
+        case OP_PUSH48:
+        case OP_PUSH49:
+        case OP_PUSH50:
+        case OP_PUSH51:
+        case OP_PUSH52:
+        case OP_PUSH53:
+        case OP_PUSH54:
+        case OP_PUSH55:
+        case OP_PUSH56:
+        case OP_PUSH57:
+        case OP_PUSH58:
+        case OP_PUSH59:
+        case OP_PUSH60:
+        case OP_PUSH61:
+        case OP_PUSH62:
+        case OP_PUSH63:
+        case OP_PUSH64:
         {
             qrvmc_uint256be value = {};
             size_t num_push_bytes = size_t{code[pc]} - OP_PUSH1 + 1;

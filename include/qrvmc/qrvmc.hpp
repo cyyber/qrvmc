@@ -23,7 +23,7 @@ namespace qrvmc
 /// String view of uint8_t chars.
 using bytes_view = std::basic_string_view<uint8_t>;
 
-/// The big-endian 384-bit value suitable for keeping a QRL address.
+/// The big-endian 512-bit value suitable for keeping a QRL address.
 ///
 /// This type wraps C ::qrvmc_address to make sure objects of this type are always initialized.
 struct address : qrvmc_address
@@ -35,12 +35,14 @@ struct address : qrvmc_address
 
     /// Converting constructor from unsigned integer value.
     ///
-    /// After the 48-byte-address migration this constructor assigns the
-    /// @p v value to the last 8 bytes [40:47] in big-endian order so the
-    /// integer ends up right-aligned in the 48-byte container (mirroring
+    /// After the 64-byte-address migration this constructor assigns the
+    /// @p v value to the last 8 bytes [56:63] in big-endian order so the
+    /// integer ends up right-aligned in the 64-byte container (mirroring
     /// the layout produced by parsing a short Q-prefixed hex literal).
     constexpr explicit address(uint64_t v) noexcept
       : qrvmc_address{{0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
                        0, 0, 0, 0, 0, 0, 0, 0,
                        0, 0, 0, 0, 0, 0, 0, 0,
                        0, 0, 0, 0, 0, 0, 0, 0,
@@ -156,7 +158,9 @@ inline constexpr bool operator==(const address& a, const address& b) noexcept
            load64le(&a.bytes[16]) == load64le(&b.bytes[16]) &&
            load64le(&a.bytes[24]) == load64le(&b.bytes[24]) &&
            load64le(&a.bytes[32]) == load64le(&b.bytes[32]) &&
-           load64le(&a.bytes[40]) == load64le(&b.bytes[40]);
+           load64le(&a.bytes[40]) == load64le(&b.bytes[40]) &&
+           load64le(&a.bytes[48]) == load64le(&b.bytes[48]) &&
+           load64le(&a.bytes[56]) == load64le(&b.bytes[56]);
 }
 
 /// The "not equal to" comparison operator for the qrvmc::address type.
@@ -880,9 +884,16 @@ struct hash<qrvmc::address>
     {
         using namespace qrvmc;
         using namespace fnv;
-        return static_cast<size_t>(fnv1a_by64(
-            fnv1a_by64(fnv1a_by64(fnv::offset_basis, load64le(&s.bytes[0])), load64le(&s.bytes[8])),
-            load32le(&s.bytes[16])));
+        return static_cast<size_t>(
+            fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(
+                fnv1a_by64(fnv1a_by64(fnv::offset_basis, load64le(&s.bytes[0])),
+                            load64le(&s.bytes[8])),
+                load64le(&s.bytes[16])),
+                load64le(&s.bytes[24])),
+                load64le(&s.bytes[32])),
+                load64le(&s.bytes[40])),
+                load64le(&s.bytes[48])),
+                load64le(&s.bytes[56])));
     }
 };
 
@@ -896,10 +907,15 @@ struct hash<qrvmc::bytes32>
         using namespace qrvmc;
         using namespace fnv;
         return static_cast<size_t>(
-            fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv::offset_basis, load64le(&s.bytes[0])),
-                                             load64le(&s.bytes[8])),
-                                  load64le(&s.bytes[16])),
-                       load64le(&s.bytes[24])));
+            fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(
+                fnv1a_by64(fnv1a_by64(fnv::offset_basis, load64le(&s.bytes[0])),
+                            load64le(&s.bytes[8])),
+                load64le(&s.bytes[16])),
+                load64le(&s.bytes[24])),
+                load64le(&s.bytes[32])),
+                load64le(&s.bytes[40])),
+                load64le(&s.bytes[48])),
+                load64le(&s.bytes[56])));
     }
 };
 }  // namespace std
