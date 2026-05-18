@@ -8,7 +8,7 @@
 /// This VM implements a subset of QRVM instructions in simplistic, incorrect and unsafe way:
 /// - memory bounds are not checked,
 /// - stack bounds are not checked,
-/// - most of the operations are done with 32-bit precision (instead of QRVM 256-bit precision).
+/// - most of the operations are done with 32-bit precision (instead of QRVM 512-bit precision).
 /// Yet, it is capable of coping with some example QRVM bytecode inputs, which is very useful
 /// in integration testing. The implementation is done in simple C++ for readability and uses
 /// pure C API and some C helpers.
@@ -121,7 +121,7 @@ struct Memory
     }
 };
 
-/// Creates 256-bit value out of 32-bit input.
+/// Creates a 512-bit value out of 32-bit input (right-aligned in the 64-byte word).
 inline qrvmc_uint256be to_uint256(uint32_t x)
 {
     qrvmc_uint256be value = {};
@@ -140,7 +140,7 @@ inline qrvmc_uint256be to_uint256(qrvmc_address address)
     return value;
 }
 
-/// Truncates 256-bit value to 32-bit value.
+/// Truncates a 512-bit value to a 32-bit value (low 4 bytes of the 64-byte word).
 inline uint32_t to_uint32(qrvmc_uint256be value)
 {
     return (uint32_t{value.bytes[60]} << 24) | (uint32_t{value.bytes[61]} << 16) |

@@ -13,7 +13,7 @@ The QRVMC ABI bumps from 1 to 2 for the 64-byte-address / 512-bit-word
 Zond migration. VMs built against `QRVMC_ABI_VERSION = 1` are binary
 incompatible with hosts built against this release and vice versa.
 
-- `qrvmc_address.bytes` widened from 20 to **48 bytes** (ML-DSA-87 QRL
+- `qrvmc_address.bytes` widened from 20 to **64 bytes** (ML-DSA-87 QRL
   address layout).
 - `qrvmc_bytes32.bytes` widened from 32 to **64 bytes** (the 512-bit
   VM word). All APIs taking/returning `qrvmc_bytes32` — including

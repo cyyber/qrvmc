@@ -12,7 +12,7 @@ endfunction()
 add_qrvmc_tool_test(
     example1
     "--vm $<TARGET_FILE:qrvmc::example-vm> run 30600052596000f3 --gas 99"
-    "Result: +success[\r\n]+Gas used: +6[\r\n]+Output: +0000000000000000000000000000000000000000000000000000000000000000[\r\n]"
+    "Result: +success[\r\n]+Gas used: +6[\r\n]+Output: +00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000[\r\n]"
 )
 
 add_qrvmc_tool_test(
@@ -30,7 +30,7 @@ add_qrvmc_tool_test(
 add_qrvmc_tool_test(
     copy_input
     "--vm $<TARGET_FILE:qrvmc::example-vm> run 600035600052596000f3 --input 0xaabbccdd"
-    "Result: +success[\r\n]+Gas used: +7[\r\n]+Output: +aabbccdd00000000000000000000000000000000000000000000000000000000[\r\n]"
+    "Result: +success[\r\n]+Gas used: +7[\r\n]+Output: +aabbccdd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000[\r\n]"
 )
 
 add_qrvmc_tool_test(
@@ -41,7 +41,7 @@ add_qrvmc_tool_test(
 
 add_qrvmc_tool_test(
     create_return_2
-    "--vm $<TARGET_FILE:qrvmc::example-vm> run --create 6960026000526001601ff3600052600a6016f3"
+    "--vm $<TARGET_FILE:qrvmc::example-vm> run --create 6960026000526001603ff3600052600a6036f3"
     "Result: +success[\r\n]+Gas used: +6[\r\n]+Output: +02[\r\n]"
 )
 
@@ -66,13 +66,13 @@ add_qrvmc_tool_test(
 add_qrvmc_tool_test(
     code_from_file
     "--vm $<TARGET_FILE:qrvmc::example-vm> run @${CMAKE_CURRENT_SOURCE_DIR}/code.hex --input 0xaabbccdd"
-    "Result: +success[\r\n]+Gas used: +7[\r\n]+Output: +aabbccdd00000000000000000000000000000000000000000000000000000000[\r\n]"
+    "Result: +success[\r\n]+Gas used: +7[\r\n]+Output: +aabbccdd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000[\r\n]"
 )
 
 add_qrvmc_tool_test(
     input_from_file
     "--vm $<TARGET_FILE:qrvmc::example-vm> run 600035600052596000f3 --input @${CMAKE_CURRENT_SOURCE_DIR}/input.hex"
-    "Result: +success[\r\n]+Gas used: +7[\r\n]+Output: +aabbccdd00000000000000000000000000000000000000000000000000000000[\r\n]"
+    "Result: +success[\r\n]+Gas used: +7[\r\n]+Output: +aabbccdd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000[\r\n]"
 )
 
 add_qrvmc_tool_test(
