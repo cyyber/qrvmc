@@ -23,7 +23,7 @@ namespace qrvmc
 /// String view of uint8_t chars.
 using bytes_view = std::basic_string_view<uint8_t>;
 
-/// The big-endian 160-bit hash suitable for keeping a QRL address.
+/// The big-endian 512-bit value suitable for keeping a QRL address.
 ///
 /// This type wraps C ::qrvmc_address to make sure objects of this type are always initialized.
 struct address : qrvmc_address
@@ -35,21 +35,18 @@ struct address : qrvmc_address
 
     /// Converting constructor from unsigned integer value.
     ///
-    /// This constructor assigns the @p v value to the last 8 bytes [12:19]
-    /// in big-endian order.
+    /// After the 64-byte-address migration this constructor assigns the
+    /// @p v value to the last 8 bytes [56:63] in big-endian order so the
+    /// integer ends up right-aligned in the 64-byte container (mirroring
+    /// the layout produced by parsing a short Q-prefixed hex literal).
     constexpr explicit address(uint64_t v) noexcept
-      : qrvmc_address{{0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
+      : qrvmc_address{{0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
                        static_cast<uint8_t>(v >> 56),
                        static_cast<uint8_t>(v >> 48),
                        static_cast<uint8_t>(v >> 40),
@@ -67,7 +64,7 @@ struct address : qrvmc_address
     inline constexpr operator bytes_view() const noexcept { return {bytes, sizeof(bytes)}; }
 };
 
-/// The fixed size array of 32 bytes for storing 256-bit QRVM values.
+/// The fixed size array of 64 bytes for storing 512-bit QRVM values.
 ///
 /// This type wraps C ::qrvmc_bytes32 to make sure objects of this type are always initialized.
 struct bytes32 : qrvmc_bytes32
@@ -79,33 +76,16 @@ struct bytes32 : qrvmc_bytes32
 
     /// Converting constructor from unsigned integer value.
     ///
-    /// This constructor assigns the @p v value to the last 8 bytes [24:31]
+    /// This constructor assigns the @p v value to the last 8 bytes [56:63]
     /// in big-endian order.
     constexpr explicit bytes32(uint64_t v) noexcept
-      : qrvmc_bytes32{{0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
-                       0,
+      : qrvmc_bytes32{{0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0,
                        static_cast<uint8_t>(v >> 56),
                        static_cast<uint8_t>(v >> 48),
                        static_cast<uint8_t>(v >> 40),
@@ -123,7 +103,7 @@ struct bytes32 : qrvmc_bytes32
     inline constexpr operator bytes_view() const noexcept { return {bytes, sizeof(bytes)}; }
 };
 
-/// The alias for qrvmc::bytes32 to represent a big-endian 256-bit integer.
+/// The alias for qrvmc::bytes32 to represent a big-endian 512-bit integer.
 using uint256be = bytes32;
 
 
@@ -175,7 +155,12 @@ inline constexpr bool operator==(const address& a, const address& b) noexcept
 {
     return load64le(&a.bytes[0]) == load64le(&b.bytes[0]) &&
            load64le(&a.bytes[8]) == load64le(&b.bytes[8]) &&
-           load32le(&a.bytes[16]) == load32le(&b.bytes[16]);
+           load64le(&a.bytes[16]) == load64le(&b.bytes[16]) &&
+           load64le(&a.bytes[24]) == load64le(&b.bytes[24]) &&
+           load64le(&a.bytes[32]) == load64le(&b.bytes[32]) &&
+           load64le(&a.bytes[40]) == load64le(&b.bytes[40]) &&
+           load64le(&a.bytes[48]) == load64le(&b.bytes[48]) &&
+           load64le(&a.bytes[56]) == load64le(&b.bytes[56]);
 }
 
 /// The "not equal to" comparison operator for the qrvmc::address type.
@@ -187,11 +172,14 @@ inline constexpr bool operator!=(const address& a, const address& b) noexcept
 /// The "less than" comparison operator for the qrvmc::address type.
 inline constexpr bool operator<(const address& a, const address& b) noexcept
 {
-    return load64be(&a.bytes[0]) < load64be(&b.bytes[0]) ||
-           (load64be(&a.bytes[0]) == load64be(&b.bytes[0]) &&
-            (load64be(&a.bytes[8]) < load64be(&b.bytes[8]) ||
-             (load64be(&a.bytes[8]) == load64be(&b.bytes[8]) &&
-              load32be(&a.bytes[16]) < load32be(&b.bytes[16]))));
+    for (size_t i = 0; i < sizeof(a.bytes); i += 8)
+    {
+        auto va = load64be(&a.bytes[i]);
+        auto vb = load64be(&b.bytes[i]);
+        if (va != vb)
+            return va < vb;
+    }
+    return false;
 }
 
 /// The "greater than" comparison operator for the qrvmc::address type.
@@ -218,7 +206,11 @@ inline constexpr bool operator==(const bytes32& a, const bytes32& b) noexcept
     return load64le(&a.bytes[0]) == load64le(&b.bytes[0]) &&
            load64le(&a.bytes[8]) == load64le(&b.bytes[8]) &&
            load64le(&a.bytes[16]) == load64le(&b.bytes[16]) &&
-           load64le(&a.bytes[24]) == load64le(&b.bytes[24]);
+           load64le(&a.bytes[24]) == load64le(&b.bytes[24]) &&
+           load64le(&a.bytes[32]) == load64le(&b.bytes[32]) &&
+           load64le(&a.bytes[40]) == load64le(&b.bytes[40]) &&
+           load64le(&a.bytes[48]) == load64le(&b.bytes[48]) &&
+           load64le(&a.bytes[56]) == load64le(&b.bytes[56]);
 }
 
 /// The "not equal to" comparison operator for the qrvmc::bytes32 type.
@@ -230,13 +222,14 @@ inline constexpr bool operator!=(const bytes32& a, const bytes32& b) noexcept
 /// The "less than" comparison operator for the qrvmc::bytes32 type.
 inline constexpr bool operator<(const bytes32& a, const bytes32& b) noexcept
 {
-    return load64be(&a.bytes[0]) < load64be(&b.bytes[0]) ||
-           (load64be(&a.bytes[0]) == load64be(&b.bytes[0]) &&
-            (load64be(&a.bytes[8]) < load64be(&b.bytes[8]) ||
-             (load64be(&a.bytes[8]) == load64be(&b.bytes[8]) &&
-              (load64be(&a.bytes[16]) < load64be(&b.bytes[16]) ||
-               (load64be(&a.bytes[16]) == load64be(&b.bytes[16]) &&
-                load64be(&a.bytes[24]) < load64be(&b.bytes[24]))))));
+    for (size_t i = 0; i < sizeof(a.bytes); i += 8)
+    {
+        auto va = load64be(&a.bytes[i]);
+        auto vb = load64be(&b.bytes[i]);
+        if (va != vb)
+            return va < vb;
+    }
+    return false;
 }
 
 /// The "greater than" comparison operator for the qrvmc::bytes32 type.
@@ -891,9 +884,16 @@ struct hash<qrvmc::address>
     {
         using namespace qrvmc;
         using namespace fnv;
-        return static_cast<size_t>(fnv1a_by64(
-            fnv1a_by64(fnv1a_by64(fnv::offset_basis, load64le(&s.bytes[0])), load64le(&s.bytes[8])),
-            load32le(&s.bytes[16])));
+        return static_cast<size_t>(
+            fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(
+                fnv1a_by64(fnv1a_by64(fnv::offset_basis, load64le(&s.bytes[0])),
+                            load64le(&s.bytes[8])),
+                load64le(&s.bytes[16])),
+                load64le(&s.bytes[24])),
+                load64le(&s.bytes[32])),
+                load64le(&s.bytes[40])),
+                load64le(&s.bytes[48])),
+                load64le(&s.bytes[56])));
     }
 };
 
@@ -907,10 +907,15 @@ struct hash<qrvmc::bytes32>
         using namespace qrvmc;
         using namespace fnv;
         return static_cast<size_t>(
-            fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv::offset_basis, load64le(&s.bytes[0])),
-                                             load64le(&s.bytes[8])),
-                                  load64le(&s.bytes[16])),
-                       load64le(&s.bytes[24])));
+            fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(fnv1a_by64(
+                fnv1a_by64(fnv1a_by64(fnv::offset_basis, load64le(&s.bytes[0])),
+                            load64le(&s.bytes[8])),
+                load64le(&s.bytes[16])),
+                load64le(&s.bytes[24])),
+                load64le(&s.bytes[32])),
+                load64le(&s.bytes[40])),
+                load64le(&s.bytes[48])),
+                load64le(&s.bytes[56])));
     }
 };
 }  // namespace std

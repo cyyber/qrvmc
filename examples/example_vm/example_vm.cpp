@@ -8,7 +8,7 @@
 /// This VM implements a subset of QRVM instructions in simplistic, incorrect and unsafe way:
 /// - memory bounds are not checked,
 /// - stack bounds are not checked,
-/// - most of the operations are done with 32-bit precision (instead of QRVM 256-bit precision).
+/// - most of the operations are done with 32-bit precision (instead of QRVM 512-bit precision).
 /// Yet, it is capable of coping with some example QRVM bytecode inputs, which is very useful
 /// in integration testing. The implementation is done in simple C++ for readability and uses
 /// pure C API and some C helpers.
@@ -121,39 +121,37 @@ struct Memory
     }
 };
 
-/// Creates 256-bit value out of 32-bit input.
+/// Creates a 512-bit value out of 32-bit input (right-aligned in the 64-byte word).
 inline qrvmc_uint256be to_uint256(uint32_t x)
 {
     qrvmc_uint256be value = {};
-    value.bytes[31] = static_cast<uint8_t>(x);
-    value.bytes[30] = static_cast<uint8_t>(x >> 8);
-    value.bytes[29] = static_cast<uint8_t>(x >> 16);
-    value.bytes[28] = static_cast<uint8_t>(x >> 24);
+    value.bytes[63] = static_cast<uint8_t>(x);
+    value.bytes[62] = static_cast<uint8_t>(x >> 8);
+    value.bytes[61] = static_cast<uint8_t>(x >> 16);
+    value.bytes[60] = static_cast<uint8_t>(x >> 24);
     return value;
 }
 
-/// Creates 256-bit value out of an 160-bit address.
+/// Creates a 512-bit value from the full 64-byte QRL address.
 inline qrvmc_uint256be to_uint256(qrvmc_address address)
 {
     qrvmc_uint256be value = {};
-    size_t offset = sizeof(value) - sizeof(address);
-    std::memcpy(&value.bytes[offset], address.bytes, sizeof(address.bytes));
+    std::memcpy(value.bytes, address.bytes, sizeof(value.bytes));
     return value;
 }
 
-/// Truncates 256-bit value to 32-bit value.
+/// Truncates a 512-bit value to a 32-bit value (low 4 bytes of the 64-byte word).
 inline uint32_t to_uint32(qrvmc_uint256be value)
 {
-    return (uint32_t{value.bytes[28]} << 24) | (uint32_t{value.bytes[29]} << 16) |
-           (uint32_t{value.bytes[30]} << 8) | (uint32_t{value.bytes[31]});
+    return (uint32_t{value.bytes[60]} << 24) | (uint32_t{value.bytes[61]} << 16) |
+           (uint32_t{value.bytes[62]} << 8) | (uint32_t{value.bytes[63]});
 }
 
-/// Truncates 256-bit value to 160-bit address.
+/// Converts a 512-bit value to a QRL address.
 inline qrvmc_address to_address(qrvmc_uint256be value)
 {
     qrvmc_address address = {};
-    size_t offset = sizeof(value) - sizeof(address);
-    std::memcpy(address.bytes, &value.bytes[offset], sizeof(address.bytes));
+    std::memcpy(address.bytes, value.bytes, sizeof(address.bytes));
     return address;
 }
 
@@ -294,6 +292,38 @@ qrvmc_result execute(qrvmc_vm* instance,
         case OP_PUSH30:
         case OP_PUSH31:
         case OP_PUSH32:
+        case OP_PUSH33:
+        case OP_PUSH34:
+        case OP_PUSH35:
+        case OP_PUSH36:
+        case OP_PUSH37:
+        case OP_PUSH38:
+        case OP_PUSH39:
+        case OP_PUSH40:
+        case OP_PUSH41:
+        case OP_PUSH42:
+        case OP_PUSH43:
+        case OP_PUSH44:
+        case OP_PUSH45:
+        case OP_PUSH46:
+        case OP_PUSH47:
+        case OP_PUSH48:
+        case OP_PUSH49:
+        case OP_PUSH50:
+        case OP_PUSH51:
+        case OP_PUSH52:
+        case OP_PUSH53:
+        case OP_PUSH54:
+        case OP_PUSH55:
+        case OP_PUSH56:
+        case OP_PUSH57:
+        case OP_PUSH58:
+        case OP_PUSH59:
+        case OP_PUSH60:
+        case OP_PUSH61:
+        case OP_PUSH62:
+        case OP_PUSH63:
+        case OP_PUSH64:
         {
             qrvmc_uint256be value = {};
             size_t num_push_bytes = size_t{code[pc]} - OP_PUSH1 + 1;
