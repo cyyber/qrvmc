@@ -25,24 +25,24 @@ class NullHost : public qrvmc::Host
 public:
     bool account_exists(const qrvmc::address& /*addr*/) const noexcept final { return false; }
 
-    qrvmc::bytes32 get_storage(const qrvmc::address& /*addr*/,
-                               const qrvmc::bytes32& /*key*/) const noexcept final
+    qrvmc::bytes64 get_storage(const qrvmc::address& /*addr*/,
+                               const qrvmc::bytes64& /*key*/) const noexcept final
     {
         return {};
     }
 
     qrvmc_storage_status set_storage(const qrvmc::address& /*addr*/,
-                                     const qrvmc::bytes32& /*key*/,
-                                     const qrvmc::bytes32& /*value*/) noexcept final
+                                     const qrvmc::bytes64& /*key*/,
+                                     const qrvmc::bytes64& /*value*/) noexcept final
     {
         return {};
     }
 
-    qrvmc::uint256be get_balance(const qrvmc::address& /*addr*/) const noexcept final { return {}; }
+    qrvmc::uint512be get_balance(const qrvmc::address& /*addr*/) const noexcept final { return {}; }
 
     size_t get_code_size(const qrvmc::address& /*addr*/) const noexcept final { return 0; }
 
-    qrvmc::bytes32 get_code_hash(const qrvmc::address& /*addr*/) const noexcept final { return {}; }
+    qrvmc::bytes64 get_code_hash(const qrvmc::address& /*addr*/) const noexcept final { return {}; }
 
     size_t copy_code(const qrvmc::address& /*addr*/,
                      size_t /*code_offset*/,
@@ -56,12 +56,12 @@ public:
 
     qrvmc_tx_context get_tx_context() const noexcept final { return {}; }
 
-    qrvmc::bytes32 get_block_hash(int64_t /*block_number*/) const noexcept final { return {}; }
+    qrvmc::bytes64 get_block_hash(int64_t /*block_number*/) const noexcept final { return {}; }
 
     void emit_log(const qrvmc::address& /*addr*/,
                   const uint8_t* /*data*/,
                   size_t /*data_size*/,
-                  const qrvmc::bytes32 /*topics*/[],
+                  const qrvmc::bytes64 /*topics*/[],
                   size_t /*num_topics*/) noexcept final
     {}
 
@@ -71,7 +71,7 @@ public:
     }
 
     qrvmc_access_status access_storage(const qrvmc::address& /*addr*/,
-                                       const qrvmc::bytes32& /*key*/) noexcept final
+                                       const qrvmc::bytes64& /*key*/) noexcept final
     {
         return QRVMC_ACCESS_COLD;
     }
@@ -99,16 +99,16 @@ TEST(cpp, address)
     EXPECT_FALSE(!a);
 }
 
-TEST(cpp, bytes32)
+TEST(cpp, bytes64)
 {
-    qrvmc::bytes32 b;
+    qrvmc::bytes64 b;
     EXPECT_EQ(std::count(std::begin(b.bytes), std::end(b.bytes), 0), int{sizeof(b)});
-    EXPECT_EQ(b, qrvmc::bytes32{});
+    EXPECT_EQ(b, qrvmc::bytes64{});
     EXPECT_TRUE(is_zero(b));
     EXPECT_FALSE(b);
     EXPECT_TRUE(!b);
 
-    auto other = qrvmc_bytes32{};
+    auto other = qrvmc_bytes64{};
     other.bytes[31] = 0xfe;
     b = other;
     EXPECT_TRUE(std::equal(std::begin(b.bytes), std::end(b.bytes), std::begin(other.bytes)));
@@ -126,18 +126,18 @@ TEST(cpp, std_hash)
     using namespace qrvmc::literals;
 
     static_assert(std::hash<qrvmc::address>{}({}) == static_cast<size_t>(0xa8c7f832281a39c5));
-    static_assert(std::hash<qrvmc::bytes32>{}({}) == static_cast<size_t>(0xa8c7f832281a39c5));
+    static_assert(std::hash<qrvmc::bytes64>{}({}) == static_cast<size_t>(0xa8c7f832281a39c5));
 
     EXPECT_EQ(std::hash<qrvmc::address>{}({}), static_cast<size_t>(0xa8c7f832281a39c5));
-    EXPECT_EQ(std::hash<qrvmc::bytes32>{}({}), static_cast<size_t>(0xa8c7f832281a39c5));
+    EXPECT_EQ(std::hash<qrvmc::bytes64>{}({}), static_cast<size_t>(0xa8c7f832281a39c5));
 
     auto ea = qrvmc::address{};
     std::fill_n(ea.bytes, sizeof(ea), uint8_t{0xee});
     EXPECT_EQ(std::hash<qrvmc::address>{}(ea), static_cast<size_t>(0x3c6167ea50b469c5));
 
-    auto eb = qrvmc::bytes32{};
+    auto eb = qrvmc::bytes64{};
     std::fill_n(eb.bytes, sizeof(eb), uint8_t{0xee});
-    EXPECT_EQ(std::hash<qrvmc::bytes32>{}(eb), static_cast<size_t>(0x3c6167ea50b469c5));
+    EXPECT_EQ(std::hash<qrvmc::bytes64>{}(eb), static_cast<size_t>(0x3c6167ea50b469c5));
 
     const auto rand_address_1 = "Q00000000000000000000000000000000000000000000000000000000aa00bb00cc00dd00ee00ff001100220033004400"_address;
     EXPECT_EQ(std::hash<qrvmc::address>{}(rand_address_1), static_cast<size_t>(0xb3cb03dade030c16));
@@ -145,13 +145,13 @@ TEST(cpp, std_hash)
     const auto rand_address_2 = "Q0000000000000000000000000000000000000000000000000000000000dd00cc00bb00aa0022001100ff00ee00440033"_address;
     EXPECT_EQ(std::hash<qrvmc::address>{}(rand_address_2), static_cast<size_t>(0xbf39ba76a49409c5));
 
-    const auto rand_bytes32_1 =
-        0xbb01bb02bb03bb04bb05bb06bb07bb08bb09bb0abb0bbb0cbb0dbb0ebb0fbb00_bytes32;
-    EXPECT_EQ(std::hash<qrvmc::bytes32>{}(rand_bytes32_1), static_cast<size_t>(0x3351f62782e14d89));
+    const auto rand_bytes64_1 =
+        0xbb01bb02bb03bb04bb05bb06bb07bb08bb09bb0abb0bbb0cbb0dbb0ebb0fbb00_bytes64;
+    EXPECT_EQ(std::hash<qrvmc::bytes64>{}(rand_bytes64_1), static_cast<size_t>(0x3351f62782e14d89));
 
-    const auto rand_bytes32_2 =
-        0x04bb03bb02bb01bb08bb07bb06bb05bb0cbb0bbb0abb09bb00bb0fbb0ebb0dbb_bytes32;
-    EXPECT_EQ(std::hash<qrvmc::bytes32>{}(rand_bytes32_2), static_cast<size_t>(0xbad76d83947a3ec5));
+    const auto rand_bytes64_2 =
+        0x04bb03bb02bb01bb08bb07bb06bb05bb0cbb0bbb0abb09bb00bb0fbb0ebb0dbb_bytes64;
+    EXPECT_EQ(std::hash<qrvmc::bytes64>{}(rand_bytes64_2), static_cast<size_t>(0xbad76d83947a3ec5));
 }
 
 TEST(cpp, std_maps)
@@ -167,12 +167,12 @@ TEST(cpp, std_maps)
     ASSERT_EQ(unordered_addresses.size(), size_t{1});
     EXPECT_FALSE(unordered_addresses.begin()->first);
 
-    std::map<qrvmc::bytes32, bool> storage;
+    std::map<qrvmc::bytes64, bool> storage;
     storage[{}] = true;
     ASSERT_EQ(storage.size(), size_t{1});
-    EXPECT_EQ(storage.begin()->first, qrvmc::bytes32{});
+    EXPECT_EQ(storage.begin()->first, qrvmc::bytes64{});
 
-    std::unordered_map<qrvmc::bytes32, bool> unordered_storage;
+    std::unordered_map<qrvmc::bytes64, bool> unordered_storage;
     unordered_storage.emplace(*storage.begin());
     storage.clear();
     ASSERT_EQ(unordered_storage.size(), size_t{1});
@@ -289,14 +289,14 @@ TEST(cpp, address_comparison)
     }
 }
 
-TEST(cpp, bytes32_comparison)
+TEST(cpp, bytes64_comparison)
 {
-    const auto zero = qrvmc::bytes32{};
-    auto max = qrvmc::bytes32{};
+    const auto zero = qrvmc::bytes64{};
+    auto max = qrvmc::bytes64{};
     std::fill_n(max.bytes, sizeof(max), uint8_t{0xff});
-    auto z_max = qrvmc::bytes32{};
+    auto z_max = qrvmc::bytes64{};
     std::fill_n(z_max.bytes + 8, sizeof(max) - 8, uint8_t{0xff});
-    auto max_z = qrvmc::bytes32{};
+    auto max_z = qrvmc::bytes64{};
     std::fill_n(max_z.bytes, sizeof(max) - 8, uint8_t{0xff});
 
     expect_cmp(zero, zero, equal);
@@ -306,13 +306,13 @@ TEST(cpp, bytes32_comparison)
     expect_cmp(z_max, max_z, less);
     expect_cmp(max_z, z_max, greater);
 
-    for (size_t i = 0; i < sizeof(qrvmc::bytes32); ++i)
+    for (size_t i = 0; i < sizeof(qrvmc::bytes64); ++i)
     {
-        auto t = qrvmc::bytes32{};
+        auto t = qrvmc::bytes64{};
         t.bytes[i] = 1;
-        auto u = qrvmc::bytes32{};
+        auto u = qrvmc::bytes64{};
         u.bytes[i] = 2;
-        auto f = qrvmc::bytes32{};
+        auto f = qrvmc::bytes64{};
         f.bytes[i] = 0xff;
 
         expect_cmp(zero, t, less);
@@ -339,10 +339,10 @@ TEST(cpp, literals)
 
     constexpr auto address1 = "Q00000000000000000000000000000000000000000000000000000000a0a1a2a3a4a5a6a7a8a9d0d1d2d3d4d5d6d7d8d9"_address;
     constexpr auto hash1 =
-        0x01020304050607080910a1a2a3a4a5a6a7a8a9b0c1c2c3c4c5c6c7c8c9d0d1d2_bytes32;
+        0x01020304050607080910a1a2a3a4a5a6a7a8a9b0c1c2c3c4c5c6c7c8c9d0d1d2_bytes64;
     constexpr auto zero_address = "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"_address;
     constexpr auto zero_hash =
-        0x0000000000000000000000000000000000000000000000000000000000000000_bytes32;
+        0x0000000000000000000000000000000000000000000000000000000000000000_bytes64;
 
     static_assert(address1.bytes[44] == 0xa0);
     static_assert(address1.bytes[53] == 0xa9);
@@ -352,15 +352,15 @@ TEST(cpp, literals)
     static_assert(hash1.bytes[42] == 0xa1);
     static_assert(hash1.bytes[63] == 0xd2);
     static_assert(zero_address == qrvmc::address{});
-    static_assert(zero_hash == qrvmc::bytes32{});
+    static_assert(zero_hash == qrvmc::bytes64{});
 
     static_assert("Q00"_address == "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"_address);
     static_assert("Q01"_address == "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"_address);
     static_assert("Qf101"_address == "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f101"_address);
 
     EXPECT_EQ("Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"_address, qrvmc::address{});
-    EXPECT_EQ(0x0000000000000000000000000000000000000000000000000000000000000000_bytes32,
-              qrvmc::bytes32{});
+    EXPECT_EQ(0x0000000000000000000000000000000000000000000000000000000000000000_bytes64,
+              qrvmc::bytes64{});
 
     auto a1 = "Q00000000000000000000000000000000000000000000000000000000a0a1a2a3a4a5a6a7a8a9d0d1d2d3d4d5d6d7d8d9"_address;
     qrvmc::address e1{};
@@ -369,8 +369,8 @@ TEST(cpp, literals)
     std::copy(std::begin(e1_tail), std::end(e1_tail), &e1.bytes[sizeof(e1.bytes) - sizeof(e1_tail)]);
     EXPECT_EQ(a1, e1);
 
-    auto h1 = 0x01020304050607080910a1a2a3a4a5a6a7a8a9b0c1c2c3c4c5c6c7c8c9d0d1d2_bytes32;
-    qrvmc::bytes32 f1{};
+    auto h1 = 0x01020304050607080910a1a2a3a4a5a6a7a8a9b0c1c2c3c4c5c6c7c8c9d0d1d2_bytes64;
+    qrvmc::bytes64 f1{};
     const uint8_t f1_tail[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0xa1,
                                0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xb0, 0xc1, 0xc2,
                                0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xd0, 0xd1, 0xd2};
@@ -378,26 +378,26 @@ TEST(cpp, literals)
     EXPECT_EQ(h1, f1);
 }
 
-TEST(cpp, bytes32_from_uint)
+TEST(cpp, bytes64_from_uint)
 {
-    using qrvmc::bytes32;
-    using qrvmc::operator""_bytes32;
+    using qrvmc::bytes64;
+    using qrvmc::operator""_bytes64;
 
-    static_assert(bytes32{0} == bytes32{});
-    static_assert(bytes32{3}.bytes[63] == 3);
-    static_assert(bytes32{0xfe00000000000000}.bytes[56] == 0xfe);
+    static_assert(bytes64{0} == bytes64{});
+    static_assert(bytes64{3}.bytes[63] == 3);
+    static_assert(bytes64{0xfe00000000000000}.bytes[56] == 0xfe);
 
-    EXPECT_EQ(bytes32{0}, bytes32{});
-    EXPECT_EQ(bytes32{0x01},
-              0x0000000000000000000000000000000000000000000000000000000000000001_bytes32);
-    EXPECT_EQ(bytes32{0xff},
-              0x00000000000000000000000000000000000000000000000000000000000000ff_bytes32);
-    EXPECT_EQ(bytes32{0x500},
-              0x0000000000000000000000000000000000000000000000000000000000000500_bytes32);
-    EXPECT_EQ(bytes32{0x8000000000000000},
-              0x0000000000000000000000000000000000000000000000008000000000000000_bytes32);
-    EXPECT_EQ(bytes32{0xc1c2c3c4c5c6c7c8},
-              0x000000000000000000000000000000000000000000000000c1c2c3c4c5c6c7c8_bytes32);
+    EXPECT_EQ(bytes64{0}, bytes64{});
+    EXPECT_EQ(bytes64{0x01},
+              0x0000000000000000000000000000000000000000000000000000000000000001_bytes64);
+    EXPECT_EQ(bytes64{0xff},
+              0x00000000000000000000000000000000000000000000000000000000000000ff_bytes64);
+    EXPECT_EQ(bytes64{0x500},
+              0x0000000000000000000000000000000000000000000000000000000000000500_bytes64);
+    EXPECT_EQ(bytes64{0x8000000000000000},
+              0x0000000000000000000000000000000000000000000000008000000000000000_bytes64);
+    EXPECT_EQ(bytes64{0xc1c2c3c4c5c6c7c8},
+              0x000000000000000000000000000000000000000000000000c1c2c3c4c5c6c7c8_bytes64);
 }
 
 TEST(cpp, address_from_uint)
@@ -431,11 +431,11 @@ TEST(cpp, address_to_bytes_view)
     EXPECT_EQ(v, expected);
 }
 
-TEST(cpp, bytes32_to_bytes_view)
+TEST(cpp, bytes64_to_bytes_view)
 {
-    using qrvmc::operator""_bytes32;
+    using qrvmc::operator""_bytes64;
 
-    constexpr auto b = 0xa0a1a2a3a4a5a6a7a8a9b0b1b2b3b4b5b6b7b8b9c0c1c2c3c4c5c6c7c8c9d0d1_bytes32;
+    constexpr auto b = 0xa0a1a2a3a4a5a6a7a8a9b0b1b2b3b4b5b6b7b8b9c0c1c2c3c4c5c6c7c8c9d0d1_bytes64;
     static_assert(static_cast<qrvmc::bytes_view>(b).size() == 64);
     const qrvmc::bytes_view v = b;
     qrvmc::bytes expected(32, 0);
@@ -638,11 +638,11 @@ TEST(cpp, host)
     auto host = qrvmc::HostContext{host_interface, host_context};
 
     const auto a = qrvmc::address{{{1}}};
-    const auto v = qrvmc::bytes32{{{7, 7, 7}}};
+    const auto v = qrvmc::bytes64{{{7, 7, 7}}};
 
     EXPECT_FALSE(host.account_exists(a));
 
-    mockedHost.accounts[a].storage[{}] = {0x01_bytes32};
+    mockedHost.accounts[a].storage[{}] = {0x01_bytes64};
     EXPECT_TRUE(host.account_exists(a));
 
     EXPECT_EQ(host.set_storage(a, {}, v), QRVMC_STORAGE_MODIFIED);
@@ -652,13 +652,13 @@ TEST(cpp, host)
     EXPECT_TRUE(qrvmc::is_zero(host.get_balance(a)));
 
     EXPECT_EQ(host.get_code_size(a), size_t{0});
-    EXPECT_EQ(host.get_code_hash(a), qrvmc::bytes32{});
+    EXPECT_EQ(host.get_code_hash(a), qrvmc::bytes64{});
     EXPECT_EQ(host.copy_code(a, 0, nullptr, 0), size_t{0});
 
     auto tx = host.get_tx_context();
     EXPECT_EQ(host.get_tx_context().block_number, tx.block_number);
 
-    EXPECT_EQ(host.get_block_hash(0), qrvmc::bytes32{});
+    EXPECT_EQ(host.get_block_hash(0), qrvmc::bytes64{});
 
     host.emit_log(a, nullptr, 0, nullptr, 0);
 }

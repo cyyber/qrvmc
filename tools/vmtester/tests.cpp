@@ -94,8 +94,8 @@ TEST_F(qrvmc_vm_test, execute_create)
                             qrvmc_address{},
                             nullptr,
                             0,
-                            qrvmc_uint256be{},
-                            qrvmc_bytes32{},
+                            qrvmc_uint512be{},
+                            qrvmc_bytes64{},
                             qrvmc_address{}};
     std::array<uint8_t, 2> code = {{0xfe, 0x00}};
 
@@ -185,8 +185,8 @@ TEST_F(qrvmc_vm_test, precompile_test)
                                 qrvmc_address{},
                                 nullptr,
                                 0,
-                                qrvmc_uint256be{},
-                                qrvmc_bytes32{},
+                                qrvmc_uint512be{},
+                                qrvmc_bytes64{},
                                 addr};
 
         const qrvmc_result result =

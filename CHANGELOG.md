@@ -16,18 +16,23 @@ incompatible with hosts built against this release and vice versa.
 - `qrvmc_address.bytes` widened from 20 to **64 bytes** (ML-DSA-87 QRL
   address layout).
 - `qrvmc_bytes32.bytes` widened from 32 to **64 bytes** (the 512-bit
-  VM word). All APIs taking/returning `qrvmc_bytes32` — including
+  VM word). All APIs taking/returning it — including
   `qrvmc_host_interface.get_storage` / `set_storage` values, log
   topics, `qrvmc_message.create2_salt`, block/transaction context
   fields, `qrvmc_get_block_hash_fn`, code-hash queries — now transmit
   a 64-byte value.
-- Comparison operators on `qrvmc_address` and `qrvmc_bytes32` in the
+- Types renamed to match the widened sizes: `qrvmc_bytes32` →
+  `qrvmc_bytes64` and `qrvmc_uint256be` → `qrvmc_uint512be` in the C
+  API; `qrvmc::bytes32` → `qrvmc::bytes64`, `qrvmc::uint256be` →
+  `qrvmc::uint512be`, and the `""_bytes32` literal → `""_bytes64` in
+  the C++ API.
+- Comparison operators on `qrvmc_address` and `qrvmc_bytes64` in the
   C++ header (`qrvmc.hpp`) compare the full widened byte range.
 
 ### Notes
 
 - Storage keys stay a 32-byte value semantically (Keccak-256 of a slot
-  path); the host-interface signature still accepts `const qrvmc_bytes32*`
+  path); the host-interface signature still accepts `const qrvmc_bytes64*`
   for the key, but callers are expected to zero-extend into the upper
   32 bytes of the wire-level 64-byte struct. Hosts may safely ignore
   the upper 32 bytes when hashing into their own 32-byte key space.

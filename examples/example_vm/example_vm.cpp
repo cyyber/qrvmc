@@ -74,14 +74,14 @@ enum qrvmc_set_option_result set_option(qrvmc_vm* instance, const char* name, co
 /// The Example VM stack representation.
 struct Stack
 {
-    qrvmc_uint256be items[1024] = {};  ///< The array of stack items.
-    qrvmc_uint256be* pointer = items;  ///< The pointer to the currently first empty stack slot.
+    qrvmc_uint512be items[1024] = {};  ///< The array of stack items.
+    qrvmc_uint512be* pointer = items;  ///< The pointer to the currently first empty stack slot.
 
     /// Pops an item from the top of the stack.
-    qrvmc_uint256be pop() { return *--pointer; }
+    qrvmc_uint512be pop() { return *--pointer; }
 
     /// Pushes an item to the top of the stack.
-    void push(qrvmc_uint256be value) { *pointer++ = value; }
+    void push(qrvmc_uint512be value) { *pointer++ = value; }
 };
 
 /// The Example VM memory representation.
@@ -122,9 +122,9 @@ struct Memory
 };
 
 /// Creates a 512-bit value out of 32-bit input (right-aligned in the 64-byte word).
-inline qrvmc_uint256be to_uint256(uint32_t x)
+inline qrvmc_uint512be to_uint512(uint32_t x)
 {
-    qrvmc_uint256be value = {};
+    qrvmc_uint512be value = {};
     value.bytes[63] = static_cast<uint8_t>(x);
     value.bytes[62] = static_cast<uint8_t>(x >> 8);
     value.bytes[61] = static_cast<uint8_t>(x >> 16);
@@ -133,22 +133,22 @@ inline qrvmc_uint256be to_uint256(uint32_t x)
 }
 
 /// Creates a 512-bit value from the full 64-byte QRL address.
-inline qrvmc_uint256be to_uint256(qrvmc_address address)
+inline qrvmc_uint512be to_uint512(qrvmc_address address)
 {
-    qrvmc_uint256be value = {};
+    qrvmc_uint512be value = {};
     std::memcpy(value.bytes, address.bytes, sizeof(value.bytes));
     return value;
 }
 
 /// Truncates a 512-bit value to a 32-bit value (low 4 bytes of the 64-byte word).
-inline uint32_t to_uint32(qrvmc_uint256be value)
+inline uint32_t to_uint32(qrvmc_uint512be value)
 {
     return (uint32_t{value.bytes[60]} << 24) | (uint32_t{value.bytes[61]} << 16) |
            (uint32_t{value.bytes[62]} << 8) | (uint32_t{value.bytes[63]});
 }
 
 /// Converts a 512-bit value to a QRL address.
-inline qrvmc_address to_address(qrvmc_uint256be value)
+inline qrvmc_address to_address(qrvmc_uint512be value)
 {
     qrvmc_address address = {};
     std::memcpy(address.bytes, value.bytes, sizeof(address.bytes));
@@ -194,13 +194,13 @@ qrvmc_result execute(qrvmc_vm* instance,
             uint32_t a = to_uint32(stack.pop());
             uint32_t b = to_uint32(stack.pop());
             uint32_t sum = a + b;
-            stack.push(to_uint256(sum));
+            stack.push(to_uint512(sum));
             break;
         }
 
         case OP_ADDRESS:
         {
-            qrvmc_uint256be value = to_uint256(msg->recipient);
+            qrvmc_uint512be value = to_uint512(msg->recipient);
             stack.push(value);
             break;
         }
@@ -208,7 +208,7 @@ qrvmc_result execute(qrvmc_vm* instance,
         case OP_CALLDATALOAD:
         {
             uint32_t offset = to_uint32(stack.pop());
-            qrvmc_uint256be value = {};
+            qrvmc_uint512be value = {};
 
             if (offset < msg->input_size)
             {
@@ -222,8 +222,8 @@ qrvmc_result execute(qrvmc_vm* instance,
 
         case OP_NUMBER:
         {
-            qrvmc_uint256be value =
-                to_uint256(static_cast<uint32_t>(host->get_tx_context(context).block_number));
+            qrvmc_uint512be value =
+                to_uint512(static_cast<uint32_t>(host->get_tx_context(context).block_number));
             stack.push(value);
             break;
         }
@@ -231,7 +231,7 @@ qrvmc_result execute(qrvmc_vm* instance,
         case OP_MSTORE:
         {
             uint32_t index = to_uint32(stack.pop());
-            qrvmc_uint256be value = stack.pop();
+            qrvmc_uint512be value = stack.pop();
             if (!memory.store(index, value.bytes, sizeof(value)))
                 return qrvmc_make_result(QRVMC_FAILURE, 0, 0, nullptr, 0);
             break;
@@ -239,23 +239,23 @@ qrvmc_result execute(qrvmc_vm* instance,
 
         case OP_SLOAD:
         {
-            qrvmc_uint256be index = stack.pop();
-            qrvmc_uint256be value = host->get_storage(context, &msg->recipient, &index);
+            qrvmc_uint512be index = stack.pop();
+            qrvmc_uint512be value = host->get_storage(context, &msg->recipient, &index);
             stack.push(value);
             break;
         }
 
         case OP_SSTORE:
         {
-            qrvmc_uint256be index = stack.pop();
-            qrvmc_uint256be value = stack.pop();
+            qrvmc_uint512be index = stack.pop();
+            qrvmc_uint512be value = stack.pop();
             host->set_storage(context, &msg->recipient, &index, &value);
             break;
         }
 
         case OP_MSIZE:
         {
-            qrvmc_uint256be value = to_uint256(memory.size);
+            qrvmc_uint512be value = to_uint512(memory.size);
             stack.push(value);
             break;
         }
@@ -325,7 +325,7 @@ qrvmc_result execute(qrvmc_vm* instance,
         case OP_PUSH63:
         case OP_PUSH64:
         {
-            qrvmc_uint256be value = {};
+            qrvmc_uint512be value = {};
             size_t num_push_bytes = size_t{code[pc]} - OP_PUSH1 + 1;
             size_t offset = sizeof(value) - num_push_bytes;
             std::memcpy(&value.bytes[offset], &code[pc + 1], num_push_bytes);
@@ -336,7 +336,7 @@ qrvmc_result execute(qrvmc_vm* instance,
 
         case OP_DUP1:
         {
-            qrvmc_uint256be value = stack.pop();
+            qrvmc_uint512be value = stack.pop();
             stack.push(value);
             stack.push(value);
             break;
@@ -363,7 +363,7 @@ qrvmc_result execute(qrvmc_vm* instance,
 
             qrvmc_result call_result = host->call(context, &call_msg);
 
-            qrvmc_uint256be value = to_uint256(call_result.status_code == QRVMC_SUCCESS ? 1 : 0);
+            qrvmc_uint512be value = to_uint512(call_result.status_code == QRVMC_SUCCESS ? 1 : 0);
             stack.push(value);
 
             if (call_output_size > call_result.output_size)

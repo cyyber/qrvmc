@@ -92,13 +92,13 @@ TEST_F(example_vm, counter_in_storage)
 {
     // Yul: sstore(0, add(sload(0), 1)) stop()
     auto& storage_value = host.accounts[msg.recipient].storage[{}].current;
-    storage_value = 0x00000000000000000000000000000000000000000000000000000000000000bb_bytes32;
+    storage_value = 0x00000000000000000000000000000000000000000000000000000000000000bb_bytes64;
     const auto r = execute_in_example_vm(10, "60016000540160005500");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
     EXPECT_EQ(r.gas_left, 3);
     EXPECT_EQ(r, Output(""));
     EXPECT_EQ(storage_value,
-              0x00000000000000000000000000000000000000000000000000000000000000bc_bytes32);
+              0x00000000000000000000000000000000000000000000000000000000000000bc_bytes64);
 }
 
 TEST_F(example_vm, return_block_number)
@@ -155,7 +155,7 @@ TEST_F(example_vm, call)
     EXPECT_EQ(host.recorded_calls[0].flags, uint32_t{0});
     EXPECT_EQ(host.recorded_calls[0].gas, 3);
     EXPECT_EQ(host.recorded_calls[0].value,
-              0x0000000000000000000000000000000000000000000000000000000000000003_bytes32);
+              0x0000000000000000000000000000000000000000000000000000000000000003_bytes64);
     EXPECT_EQ(host.recorded_calls[0].recipient,
               "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003"_address);
     EXPECT_EQ(host.recorded_calls[0].input_size, size_t{3});

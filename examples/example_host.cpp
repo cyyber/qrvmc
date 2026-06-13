@@ -21,14 +21,14 @@ struct account
 {
     virtual ~account() = default;
 
-    qrvmc::uint256be balance = {};
+    qrvmc::uint512be balance = {};
     std::vector<uint8_t> code;
-    std::map<qrvmc::bytes32, qrvmc::bytes32> storage;
+    std::map<qrvmc::bytes64, qrvmc::bytes64> storage;
 
-    virtual qrvmc::bytes32 code_hash() const
+    virtual qrvmc::bytes64 code_hash() const
     {
         // Extremely dumb "hash" function.
-        qrvmc::bytes32 ret{};
+        qrvmc::bytes64 ret{};
         for (const auto v : code)
             ret.bytes[v % sizeof(ret.bytes)] ^= v;
         return ret;
@@ -56,8 +56,8 @@ public:
         return accounts.find(addr) != accounts.end();
     }
 
-    qrvmc::bytes32 get_storage(const qrvmc::address& addr,
-                               const qrvmc::bytes32& key) const noexcept final
+    qrvmc::bytes64 get_storage(const qrvmc::address& addr,
+                               const qrvmc::bytes64& key) const noexcept final
     {
         const auto account_iter = accounts.find(addr);
         if (account_iter == accounts.end())
@@ -70,8 +70,8 @@ public:
     }
 
     qrvmc_storage_status set_storage(const qrvmc::address& addr,
-                                     const qrvmc::bytes32& key,
-                                     const qrvmc::bytes32& value) noexcept final
+                                     const qrvmc::bytes64& key,
+                                     const qrvmc::bytes64& value) noexcept final
     {
         auto& account = accounts[addr];
         auto prev_value = account.storage[key];
@@ -80,7 +80,7 @@ public:
         return (prev_value == value) ? QRVMC_STORAGE_ASSIGNED : QRVMC_STORAGE_MODIFIED;
     }
 
-    qrvmc::uint256be get_balance(const qrvmc::address& addr) const noexcept final
+    qrvmc::uint512be get_balance(const qrvmc::address& addr) const noexcept final
     {
         auto it = accounts.find(addr);
         if (it != accounts.end())
@@ -96,7 +96,7 @@ public:
         return 0;
     }
 
-    qrvmc::bytes32 get_code_hash(const qrvmc::address& addr) const noexcept final
+    qrvmc::bytes64 get_code_hash(const qrvmc::address& addr) const noexcept final
     {
         auto it = accounts.find(addr);
         if (it != accounts.end())
@@ -133,19 +133,19 @@ public:
     qrvmc_tx_context get_tx_context() const noexcept final { return tx_context; }
 
     // NOLINTNEXTLINE(bugprone-exception-escape)
-    qrvmc::bytes32 get_block_hash(int64_t number) const noexcept final
+    qrvmc::bytes64 get_block_hash(int64_t number) const noexcept final
     {
         const int64_t current_block_number = get_tx_context().block_number;
 
         return (number < current_block_number && number >= current_block_number - 256) ?
-                   0xb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5f_bytes32 :
-                   0x0000000000000000000000000000000000000000000000000000000000000000_bytes32;
+                   0xb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5f_bytes64 :
+                   0x0000000000000000000000000000000000000000000000000000000000000000_bytes64;
     }
 
     void emit_log(const qrvmc::address& addr,
                   const uint8_t* data,
                   size_t data_size,
-                  const qrvmc::bytes32 topics[],
+                  const qrvmc::bytes64 topics[],
                   size_t topics_count) noexcept final
     {
         (void)addr;
@@ -162,7 +162,7 @@ public:
     }
 
     qrvmc_access_status access_storage(const qrvmc::address& addr,
-                                       const qrvmc::bytes32& key) noexcept final
+                                       const qrvmc::bytes64& key) noexcept final
     {
         (void)addr;
         (void)key;

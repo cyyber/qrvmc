@@ -8,7 +8,7 @@
 
 // Compile time checks:
 
-static_assert(sizeof(qrvmc_bytes32) == 64, "qrvmc_bytes32 is too big");
+static_assert(sizeof(qrvmc_bytes64) == 64, "qrvmc_bytes64 is too big");
 static_assert(sizeof(qrvmc_address) == 64, "qrvmc_address is too big");
 static_assert(sizeof(qrvmc_vm) <= 64, "qrvmc_vm does not fit cache line");
 static_assert(offsetof(qrvmc_message, value) % sizeof(size_t) == 0,

@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
     const uint8_t code[] = "\x43\x60\x00\x55\x43\x60\x00\x52\x59\x60\x00\xf3";
     const size_t code_size = sizeof(code) - 1;
     const uint8_t input[] = "Hello World!";
-    const qrvmc_uint256be value = {{1, 0}};
+    const qrvmc_uint512be value = {{1, 0}};
     const qrvmc_address addr = {{0, 1, 2}};
     const int64_t gas = 200000;
     struct qrvmc_tx_context tx_context = {
@@ -77,8 +77,8 @@ int main(int argc, char* argv[])
         for (size_t i = 0; i < result.output_size; i++)
             printf("%02x", result.output_data[i]);
         printf("\n");
-        const qrvmc_bytes32 storage_key = {{0}};
-        qrvmc_bytes32 storage_value = host->get_storage(ctx, &msg.recipient, &storage_key);
+        const qrvmc_bytes64 storage_key = {{0}};
+        qrvmc_bytes64 storage_value = host->get_storage(ctx, &msg.recipient, &storage_key);
         printf("  Storage at 0x00..00: ");
         for (size_t i = 0; i < sizeof(storage_value.bytes) / sizeof(storage_value.bytes[0]); i++)
             printf("%02x", storage_value.bytes[i]);
