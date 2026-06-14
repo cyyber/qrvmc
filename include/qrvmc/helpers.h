@@ -184,7 +184,7 @@ static inline void qrvmc_release_result(struct qrvmc_result* result)
 /**
  * The union representing qrvmc_result "optional storage".
  *
- * The qrvmc_result struct contains 24 bytes of optional storage that can be
+ * The qrvmc_result struct contains 68 bytes of optional storage that can be
  * reused by the object creator if the object does not contain
  * qrvmc_result::create_address.
  *
@@ -197,7 +197,7 @@ static inline void qrvmc_release_result(struct qrvmc_result* result)
  */
 union qrvmc_result_optional_storage
 {
-    uint8_t bytes[24]; /**< 24 bytes of optional storage. */
+    uint8_t bytes[68]; /**< 68 bytes of optional storage. */
     void* pointer;     /**< Optional pointer. */
 };
 

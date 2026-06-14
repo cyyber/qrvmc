@@ -464,12 +464,10 @@ struct qrvmc_result
      * Reserved data that MAY be used by a qrvmc_result object creator.
      *
      * This reserved 4 bytes together with 64 bytes from create_address form
-     * 68 bytes of memory called "optional data" within qrvmc_result struct
+     * 68 bytes of memory called "optional storage" within qrvmc_result struct
      * to be optionally used by the qrvmc_result object creator.
      *
-     * @see qrvmc_result_optional_data, qrvmc_get_optional_data().
-     *
-     * Also extends the size of the qrvmc_result to 64 bytes (full cache line).
+     * @see qrvmc_result_optional_storage, qrvmc_get_optional_storage().
      */
     uint8_t padding[4];
 };
