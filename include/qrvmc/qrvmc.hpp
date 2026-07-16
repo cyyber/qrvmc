@@ -392,11 +392,7 @@ public:
     explicit Result(const qrvmc_result& res) noexcept : qrvmc_result{res} {}
 
     /// Destructor responsible for automatically releasing attached resources.
-    ~Result() noexcept
-    {
-        if (release != nullptr)
-            release(this);
-    }
+    ~Result() noexcept { release_resources(); }
 
     /// Move constructor.
     Result(Result&& other) noexcept : qrvmc_result{other}
@@ -406,15 +402,16 @@ public:
 
     /// Move assignment operator.
     ///
-    /// The self-assignment MUST never happen.
-    ///
     /// @param other The other result object.
     /// @return      The reference to the left-hand side object.
     Result& operator=(Result&& other) noexcept
     {
-        this->~Result();                            // Release this object.
-        static_cast<qrvmc_result&>(*this) = other;  // Copy data.
-        other.release = nullptr;                    // Disable releasing of the rvalue object.
+        if (this != &other)
+        {
+            release_resources();                        // Release this object.
+            static_cast<qrvmc_result&>(*this) = other;  // Copy data.
+            other.release = nullptr;                    // Disable releasing of the rvalue object.
+        }
         return *this;
     }
 
@@ -437,6 +434,16 @@ public:
         const auto out = qrvmc_result{*this};  // Copy data.
         this->release = nullptr;               // Disable releasing of this object.
         return out;
+    }
+
+private:
+    void release_resources() noexcept
+    {
+        if (release != nullptr)
+        {
+            release(this);
+            release = nullptr;
+        }
     }
 };
 
@@ -639,11 +646,7 @@ public:
     explicit VM(qrvmc_vm* vm) noexcept : m_instance{vm} {}
 
     /// Destructor responsible for automatically destroying the VM instance.
-    ~VM() noexcept
-    {
-        if (m_instance != nullptr)
-            m_instance->destroy(m_instance);
-    }
+    ~VM() noexcept { reset(); }
 
     VM(const VM&) = delete;
     VM& operator=(const VM&) = delete;
@@ -654,9 +657,12 @@ public:
     /// Move assignment operator.
     VM& operator=(VM&& other) noexcept
     {
-        this->~VM();
-        m_instance = other.m_instance;
-        other.m_instance = nullptr;
+        if (this != &other)
+        {
+            reset();
+            m_instance = other.m_instance;
+            other.m_instance = nullptr;
+        }
         return *this;
     }
 
@@ -741,6 +747,15 @@ public:
     qrvmc_vm* get_raw_pointer() const noexcept { return m_instance; }
 
 private:
+    void reset() noexcept
+    {
+        if (m_instance != nullptr)
+        {
+            m_instance->destroy(m_instance);
+            m_instance = nullptr;
+        }
+    }
+
     qrvmc_vm* m_instance = nullptr;
 };
 

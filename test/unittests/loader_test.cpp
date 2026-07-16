@@ -628,6 +628,25 @@ TEST_F(loader, load_and_configure_config_too_long)
     EXPECT_EQ(destroy_count, create_count);
 }
 
+TEST_F(loader, load_and_configure_null_config)
+{
+    qrvmc_loader_error_code ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
+    auto vm = qrvmc_load_and_configure(nullptr, &ec);
+    EXPECT_FALSE(vm);
+    EXPECT_TRUE(recorded_options.empty());
+    EXPECT_EQ(ec, QRVMC_LOADER_INVALID_ARGUMENT);
+    EXPECT_STREQ(qrvmc_last_error_msg(), "invalid argument: configuration cannot be null");
+    EXPECT_FALSE(qrvmc_last_error_msg());
+    EXPECT_EQ(destroy_count, create_count);
+
+    vm = qrvmc_load_and_configure(nullptr, nullptr);
+    EXPECT_FALSE(vm);
+    EXPECT_TRUE(recorded_options.empty());
+    EXPECT_STREQ(qrvmc_last_error_msg(), "invalid argument: configuration cannot be null");
+    EXPECT_FALSE(qrvmc_last_error_msg());
+    EXPECT_EQ(destroy_count, create_count);
+}
+
 TEST_F(loader, load_and_configure_error_not_wanted)
 {
     setup("path", "qrvmc_create", create_vm_with_set_option);

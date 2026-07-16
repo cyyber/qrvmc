@@ -39,7 +39,7 @@ auto bench(MockedHost& host,
         const auto probe_start = clock::now();
         const auto result = vm.execute(host, rev, msg, code.data(), code.size());
         const auto bench_start = clock::now();
-        const auto probe_time = bench_start - probe_start;
+        const auto probe_time = std::max(bench_start - probe_start, clock::duration{1});
 
         if (result.gas_left != expected_result.gas_left)
             out << warning << "(gas used: " << (msg.gas - result.gas_left) << ")\n";

@@ -171,11 +171,12 @@ TEST_F(qrvmc_vm_test, precompile_test)
         return;
 
     // Iterate every address (as per EIP-1352)
+    constexpr auto prefix_size = sizeof(qrvmc_address) - 2;
     for (size_t i = 0; i < 0xffff; i++)
     {
         auto addr = qrvmc_address{};
-        addr.bytes[18] = static_cast<uint8_t>(i >> 8);
-        addr.bytes[19] = static_cast<uint8_t>(i & 0xff);
+        addr.bytes[prefix_size] = static_cast<uint8_t>(i >> 8);
+        addr.bytes[prefix_size + 1] = static_cast<uint8_t>(i & 0xff);
 
         const qrvmc_message msg{QRVMC_CALL,
                                 0,

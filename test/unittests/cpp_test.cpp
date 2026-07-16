@@ -582,14 +582,15 @@ TEST(cpp, vm_move)
     }
     EXPECT_EQ(destroy_counter, 4);
     {
-        // Moving to itself will destroy the VM and reset the qrvmc::vm.
+        // Moving to itself leaves the VM unchanged.
         auto v1 = template_vm;
 
         auto vm1 = qrvmc::VM{&v1};
         auto& vm1_ref = vm1;
         vm1 = std::move(vm1_ref);
-        EXPECT_EQ(destroy_counter, 5);  // Already destroyed.
-        EXPECT_FALSE(vm1);              // Null.
+        EXPECT_EQ(destroy_counter, 4);
+        EXPECT_TRUE(vm1);
+        EXPECT_EQ(vm1.get_raw_pointer(), &v1);
     }
     EXPECT_EQ(destroy_counter, 5);
 }
@@ -710,6 +711,45 @@ TEST(cpp, host_call)
     EXPECT_EQ(*res.output_data, input[2]);
 }
 
+TEST(cpp, host_call_result_copies_output)
+{
+    static auto release_called = 0;
+    release_called = 0;
+    auto release_fn = [](const qrvmc_result*) noexcept { ++release_called; };
+
+    qrvmc::MockedHost mockedHost;
+    const qrvmc::bytes output{0xa, 0xb, 0xc};
+    mockedHost.call_result.status_code = QRVMC_SUCCESS;
+    mockedHost.call_result.gas_left = 4321;
+    mockedHost.call_result.gas_refund = 12;
+    mockedHost.call_result.output_data = output.data();
+    mockedHost.call_result.output_size = output.size();
+    mockedHost.call_result.release = release_fn;
+    mockedHost.call_result.create_address.bytes[63] = 0x42;
+
+    {
+        auto res1 = mockedHost.call({});
+        auto res2 = mockedHost.call({});
+
+        EXPECT_EQ(res1.status_code, QRVMC_SUCCESS);
+        EXPECT_EQ(res1.gas_left, 4321);
+        EXPECT_EQ(res1.gas_refund, 12);
+        EXPECT_EQ(res1.create_address.bytes[63], 0x42);
+        ASSERT_EQ(res1.output_size, output.size());
+        ASSERT_EQ(res2.output_size, output.size());
+        EXPECT_EQ(qrvmc::bytes(res1.output_data, res1.output_size), output);
+        EXPECT_EQ(qrvmc::bytes(res2.output_data, res2.output_size), output);
+        EXPECT_NE(res1.output_data, mockedHost.call_result.output_data);
+        EXPECT_NE(res2.output_data, mockedHost.call_result.output_data);
+        EXPECT_NE(res1.output_data, res2.output_data);
+    }
+
+    EXPECT_EQ(release_called, 0);
+    qrvmc_release_result(&mockedHost.call_result);
+    EXPECT_EQ(release_called, 1);
+    mockedHost.call_result = {};
+}
+
 TEST(cpp, result_raii)
 {
     static auto release_called = 0;
@@ -782,6 +822,21 @@ TEST(cpp, result_move)
         r2 = std::move(r1);
     }
     EXPECT_EQ(release_called, 2);
+
+    release_called = 0;
+    {
+        auto raw = qrvmc_result{};
+        raw.gas_left = 3;
+        raw.release = release_fn;
+
+        auto r = qrvmc::Result{raw};
+        auto& r_ref = r;
+        r = std::move(r_ref);
+
+        EXPECT_EQ(r.gas_left, raw.gas_left);
+        EXPECT_EQ(release_called, 0);
+    }
+    EXPECT_EQ(release_called, 1);
 }
 
 TEST(cpp, result_create_no_output)

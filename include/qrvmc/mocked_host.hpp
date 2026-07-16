@@ -385,7 +385,10 @@ public:
                 call_msg.input_data = input_copy.data();
             }
         }
-        return Result{call_result};
+        auto result = Result{call_result.status_code, call_result.gas_left, call_result.gas_refund,
+                             call_result.output_data, call_result.output_size};
+        result.create_address = call_result.create_address;
+        return result;
     }
 
     /// Get transaction context (QRVMC host method).
