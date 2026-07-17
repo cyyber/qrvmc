@@ -662,6 +662,25 @@ TEST(cpp, host)
     EXPECT_EQ(host.get_block_hash(0), qrvmc::bytes64{});
 
     host.emit_log(a, nullptr, 0, nullptr, 0);
+    ASSERT_EQ(mockedHost.recorded_logs.size(), 1u);
+    EXPECT_EQ(mockedHost.recorded_logs.back(), (qrvmc::MockedHost::log_record{a, {}, {}}));
+
+    qrvmc_bytes64 raw_topics[2] = {};
+    raw_topics[0].bytes[0] = 0x01;
+    raw_topics[0].bytes[63] = 0x02;
+    raw_topics[1].bytes[0] = 0x03;
+    raw_topics[1].bytes[63] = 0x04;
+    const uint8_t log_data[] = {0xaa, 0xbb};
+
+    host_interface.emit_log(host_context, &a, log_data, sizeof(log_data), raw_topics, 2);
+    ASSERT_EQ(mockedHost.recorded_logs.size(), 2u);
+
+    const auto& log = mockedHost.recorded_logs.back();
+    EXPECT_EQ(log.creator, a);
+    EXPECT_EQ(log.data, (qrvmc::bytes{log_data, log_data + sizeof(log_data)}));
+    ASSERT_EQ(log.topics.size(), 2u);
+    EXPECT_EQ(log.topics[0], qrvmc::bytes64{raw_topics[0]});
+    EXPECT_EQ(log.topics[1], qrvmc::bytes64{raw_topics[1]});
 }
 
 TEST(cpp, host_call)

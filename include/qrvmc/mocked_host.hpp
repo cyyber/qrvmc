@@ -408,7 +408,17 @@ public:
                   const bytes64 topics[],
                   size_t topics_count) noexcept override
     {
-        recorded_logs.push_back({addr, {data, data_size}, {topics, topics + topics_count}});
+        assert(data != nullptr || data_size == 0);
+        assert(topics != nullptr || topics_count == 0);
+
+        auto& log = recorded_logs.emplace_back();
+        log.creator = addr;
+
+        if (data != nullptr)
+            log.data.assign(data, data + data_size);
+
+        if (topics != nullptr)
+            log.topics.assign(topics, topics + topics_count);
     }
 
     /// Record an account access.

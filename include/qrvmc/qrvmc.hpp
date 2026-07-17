@@ -837,8 +837,17 @@ inline void emit_log(qrvmc_host_context* h,
                      const qrvmc_bytes64 topics[],
                      size_t num_topics) noexcept
 {
-    Host::from_context(h)->emit_log(*addr, data, data_size, static_cast<const bytes64*>(topics),
-                                    num_topics);
+    constexpr auto max_log_topics = size_t{4};
+    bytes64 topic_copy[max_log_topics] = {};
+
+    auto copied_topics_count = num_topics <= max_log_topics ? num_topics : max_log_topics;
+    if (topics == nullptr)
+        copied_topics_count = 0;
+
+    for (size_t i = 0; i < copied_topics_count; ++i)
+        topic_copy[i] = bytes64{topics[i]};
+
+    Host::from_context(h)->emit_log(*addr, data, data_size, topic_copy, copied_topics_count);
 }
 
 inline qrvmc_access_status access_account(qrvmc_host_context* h, const qrvmc_address* addr) noexcept
