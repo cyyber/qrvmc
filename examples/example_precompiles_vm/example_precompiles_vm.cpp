@@ -3,7 +3,10 @@
 // Licensed under the Apache License, Version 2.0.
 
 #include "example_precompiles_vm.h"
+#include <qrvmc/helpers.h>
 #include <algorithm>
+#include <cstdint>
+#include <limits>
 
 namespace
 {
@@ -12,25 +15,30 @@ qrvmc_result execute_identity(const qrvmc_message* msg)
     auto result = qrvmc_result{};
 
     // Check the gas cost.
-    auto gas_cost = 15 + 3 * ((int64_t(msg->input_size) + 31) / 32);
-    auto gas_left = msg->gas - gas_cost;
-    if (gas_left < 0)
+    constexpr auto identity_base_gas = int64_t{15};
+    constexpr auto identity_word_gas = int64_t{3};
+    constexpr auto word_size = size_t{32};
+    constexpr auto max_input_words =
+        static_cast<std::uint64_t>((std::numeric_limits<int64_t>::max() - identity_base_gas) /
+                                   identity_word_gas);
+
+    const auto input_words =
+        static_cast<std::uint64_t>(msg->input_size / word_size) + (msg->input_size % word_size != 0);
+    if (input_words > max_input_words)
     {
         result.status_code = QRVMC_OUT_OF_GAS;
         return result;
     }
 
-    // Execute.
-    auto data = new uint8_t[msg->input_size];
-    std::copy_n(msg->input_data, msg->input_size, data);
+    const auto gas_cost = identity_base_gas + identity_word_gas * static_cast<int64_t>(input_words);
+    if (msg->gas < gas_cost)
+    {
+        result.status_code = QRVMC_OUT_OF_GAS;
+        return result;
+    }
 
-    // Return the result.
-    result.status_code = QRVMC_SUCCESS;
-    result.output_data = data;
-    result.output_size = msg->input_size;
-    result.release = [](const qrvmc_result* r) { delete[] r->output_data; };
-    result.gas_left = gas_left;
-    return result;
+    return qrvmc_make_result(
+        QRVMC_SUCCESS, msg->gas - gas_cost, 0, msg->input_data, msg->input_size);
 }
 
 qrvmc_result execute_empty(const qrvmc_message* msg)

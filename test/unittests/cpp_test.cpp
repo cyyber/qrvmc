@@ -16,6 +16,7 @@
 #include <array>
 #include <cctype>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <unordered_map>
 
@@ -622,6 +623,25 @@ TEST(cpp, vm_execute_precompiles)
     EXPECT_EQ(res.gas_left, 0);
     ASSERT_EQ(res.output_size, input.size());
     EXPECT_TRUE(std::equal(input.begin(), input.end(), res.output_data));
+}
+
+TEST(cpp, vm_execute_precompiles_huge_input_runs_out_of_gas)
+{
+    auto vm = qrvmc::VM{qrvmc_create_example_precompiles_vm()};
+
+    const auto input = uint8_t{};
+
+    qrvmc_message msg{};
+    msg.code_address.bytes[63] = 4;  // Call Identify precompile at address 0x4.
+    msg.input_data = &input;
+    msg.input_size = std::numeric_limits<size_t>::max();
+    msg.gas = 0;
+
+    auto res = vm.execute(QRVMC_MAX_REVISION, msg, nullptr, 0);
+    EXPECT_EQ(res.status_code, QRVMC_OUT_OF_GAS);
+    EXPECT_EQ(res.gas_left, 0);
+    EXPECT_EQ(res.output_data, nullptr);
+    EXPECT_EQ(res.output_size, size_t{0});
 }
 
 TEST(cpp, vm_execute_with_null_host)
