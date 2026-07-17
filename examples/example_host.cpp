@@ -120,8 +120,13 @@ public:
 
         const auto n = std::min(buffer_size, code.size() - code_offset);
 
-        if (n > 0)
-            std::copy_n(&code[code_offset], n, buffer_data);
+        if (n == 0)
+            return 0;
+
+        if (buffer_data == nullptr)
+            return 0;
+
+        std::copy_n(&code[code_offset], n, buffer_data);
         return n;
     }
 

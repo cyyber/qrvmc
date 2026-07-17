@@ -685,6 +685,13 @@ TEST(cpp, host)
     EXPECT_EQ(host.get_code_hash(a), qrvmc::bytes64{});
     EXPECT_EQ(host.copy_code(a, 0, nullptr, 0), size_t{0});
 
+    mockedHost.accounts[a].code = {0xaa, 0xbb};
+    uint8_t code_buffer[2] = {};
+    EXPECT_EQ(host.copy_code(a, 0, code_buffer, sizeof(code_buffer)), size_t{2});
+    EXPECT_EQ(code_buffer[0], 0xaa);
+    EXPECT_EQ(code_buffer[1], 0xbb);
+    EXPECT_EQ(host.copy_code(a, 0, nullptr, sizeof(code_buffer)), size_t{0});
+
     auto tx = host.get_tx_context();
     EXPECT_EQ(host.get_tx_context().block_number, tx.block_number);
 
