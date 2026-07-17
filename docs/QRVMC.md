@@ -1,6 +1,6 @@
 # QRVMC – Quantum Resistant Client-VM Connector API {#mainpage}
 
-**ABI version 1**
+**ABI version 2**
 
 The QRVMC is the low-level ABI between Quantum Resistant Virtual Machines (QRVMs) and 
 QRL Clients. On the QRVM-side it supports classic QRVM1.
