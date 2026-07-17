@@ -271,7 +271,7 @@ struct qrvmc_vm* qrvmc_load_and_configure(const char* config,
     {
         ec = set_error(QRVMC_LOADER_INVALID_ARGUMENT,
                        "invalid argument: configuration is too long (maximum allowed length is %d)",
-                       (int)sizeof(config_copy_buffer));
+                       (int)sizeof(config_copy_buffer) - 1);
         goto exit;
     }
 

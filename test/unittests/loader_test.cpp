@@ -639,7 +639,29 @@ TEST_F(loader, load_and_configure_config_too_long)
     EXPECT_TRUE(recorded_options.empty());
     EXPECT_EQ(ec, QRVMC_LOADER_INVALID_ARGUMENT);
     EXPECT_STREQ(qrvmc_last_error_msg(),
-                 "invalid argument: configuration is too long (maximum allowed length is 4096)");
+                 "invalid argument: configuration is too long (maximum allowed length is 4095)");
+    EXPECT_EQ(destroy_count, create_count);
+}
+
+TEST_F(loader, load_and_configure_config_at_max_length)
+{
+    setup("path", "qrvmc_create", create_vm_barebone);
+
+    qrvmc_loader_error_code ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
+    const auto config = std::string(4096, 'x');
+    auto vm = qrvmc_load_and_configure(config.c_str(), &ec);
+    EXPECT_FALSE(vm);
+    EXPECT_TRUE(recorded_options.empty());
+    EXPECT_EQ(ec, QRVMC_LOADER_INVALID_ARGUMENT);
+    EXPECT_STREQ(qrvmc_last_error_msg(),
+                 "invalid argument: configuration is too long (maximum allowed length is 4095)");
+    EXPECT_EQ(destroy_count, create_count);
+
+    vm = qrvmc_load_and_configure(config.c_str(), nullptr);
+    EXPECT_FALSE(vm);
+    EXPECT_TRUE(recorded_options.empty());
+    EXPECT_STREQ(qrvmc_last_error_msg(),
+                 "invalid argument: configuration is too long (maximum allowed length is 4095)");
     EXPECT_EQ(destroy_count, create_count);
 }
 

@@ -178,7 +178,7 @@ TEST_F(qrvmc_vm_test, precompile_test)
 
     // Iterate every address (as per EIP-1352)
     constexpr auto prefix_size = sizeof(qrvmc_address) - 2;
-    for (size_t i = 0; i < 0xffff; i++)
+    for (size_t i = 0; i < 0x10000; i++)
     {
         auto addr = qrvmc_address{};
         addr.bytes[prefix_size] = static_cast<uint8_t>(i >> 8);
