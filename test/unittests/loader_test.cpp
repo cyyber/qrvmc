@@ -173,12 +173,27 @@ TEST_F(loader, load_long_path)
     qrvmc_loader_error_code ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
     EXPECT_TRUE(qrvmc_load(path.c_str(), &ec) == nullptr);
     EXPECT_STREQ(qrvmc_last_error_msg(),
-                 "invalid argument: file name is too long (5000, maximum allowed length is 4096)");
+                 "invalid argument: file name is too long (5000, maximum allowed length is 4095)");
     EXPECT_TRUE(qrvmc_last_error_msg() == nullptr);
     EXPECT_EQ(ec, QRVMC_LOADER_INVALID_ARGUMENT);
     EXPECT_TRUE(qrvmc_load(path.c_str(), nullptr) == nullptr);
     EXPECT_STREQ(qrvmc_last_error_msg(),
-                 "invalid argument: file name is too long (5000, maximum allowed length is 4096)");
+                 "invalid argument: file name is too long (5000, maximum allowed length is 4095)");
+    EXPECT_TRUE(qrvmc_last_error_msg() == nullptr);
+}
+
+TEST_F(loader, load_path_at_max_length)
+{
+    const std::string path(4096, 'a');
+    qrvmc_loader_error_code ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
+    EXPECT_TRUE(qrvmc_load(path.c_str(), &ec) == nullptr);
+    EXPECT_STREQ(qrvmc_last_error_msg(),
+                 "invalid argument: file name is too long (4096, maximum allowed length is 4095)");
+    EXPECT_TRUE(qrvmc_last_error_msg() == nullptr);
+    EXPECT_EQ(ec, QRVMC_LOADER_INVALID_ARGUMENT);
+    EXPECT_TRUE(qrvmc_load(path.c_str(), nullptr) == nullptr);
+    EXPECT_STREQ(qrvmc_last_error_msg(),
+                 "invalid argument: file name is too long (4096, maximum allowed length is 4095)");
     EXPECT_TRUE(qrvmc_last_error_msg() == nullptr);
 }
 

@@ -113,11 +113,11 @@ qrvmc_create_fn qrvmc_load(const char* filename, enum qrvmc_loader_error_code* e
             set_error(QRVMC_LOADER_INVALID_ARGUMENT, "invalid argument: file name cannot be empty");
         goto exit;
     }
-    else if (length > PATH_MAX_LENGTH)
+    else if (length >= PATH_MAX_LENGTH)
     {
         ec = set_error(QRVMC_LOADER_INVALID_ARGUMENT,
                        "invalid argument: file name is too long (%d, maximum allowed length is %d)",
-                       (int)length, PATH_MAX_LENGTH);
+                       (int)length, PATH_MAX_LENGTH - 1);
         goto exit;
     }
 
