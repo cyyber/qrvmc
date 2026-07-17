@@ -715,6 +715,15 @@ TEST(cpp, host_call)
     EXPECT_EQ(recorded_msg1.input_data, nullptr);
     EXPECT_EQ(recorded_msg1.input_size, 0u);
 
+    auto invalid_msg = qrvmc_message{};
+    invalid_msg.input_data = nullptr;
+    invalid_msg.input_size = 3;
+    host.call(invalid_msg);
+    ASSERT_EQ(mockedHost.recorded_calls.size(), 2u);
+    const auto& recorded_invalid_msg = mockedHost.recorded_calls.back();
+    EXPECT_EQ(recorded_invalid_msg.input_data, nullptr);
+    EXPECT_EQ(recorded_invalid_msg.input_size, 0u);
+
     auto msg = qrvmc_message{};
     msg.gas = 1;
     qrvmc::bytes input{0xa, 0xb, 0xc};
@@ -727,7 +736,7 @@ TEST(cpp, host_call)
     mockedHost.call_result.output_size = 1;
 
     auto res = host.call(msg);
-    ASSERT_EQ(mockedHost.recorded_calls.size(), 2u);
+    ASSERT_EQ(mockedHost.recorded_calls.size(), 3u);
     const auto& recorded_msg2 = mockedHost.recorded_calls.back();
     EXPECT_EQ(recorded_msg2.kind, QRVMC_CALL);
     EXPECT_EQ(recorded_msg2.gas, 1);

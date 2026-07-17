@@ -378,7 +378,11 @@ public:
         {
             recorded_calls.emplace_back(msg);
             auto& call_msg = recorded_calls.back();
-            if (call_msg.input_size > 0)
+            if (call_msg.input_data == nullptr)
+            {
+                call_msg.input_size = 0;
+            }
+            else if (call_msg.input_size > 0)
             {
                 m_recorded_calls_inputs.emplace_back(call_msg.input_data, call_msg.input_size);
                 const auto& input_copy = m_recorded_calls_inputs.back();
