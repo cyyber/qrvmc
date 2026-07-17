@@ -774,6 +774,9 @@ inline VM::VM(qrvmc_vm* vm,
   : m_instance{vm}
 {
     // This constructor is implemented outside of the class definition to workaround a doxygen bug.
+    if (m_instance == nullptr)
+        return;
+
     for (const auto& option : options)
         set_option(option.first, option.second);
 }

@@ -530,6 +530,14 @@ TEST(cpp, vm_set_option_in_constructor)
     EXPECT_EQ(num_calls, 2);
 }
 
+TEST(cpp, vm_set_option_in_constructor_with_null_vm)
+{
+    const auto vm = qrvmc::VM{nullptr, {{"o", "1"}}};
+
+    EXPECT_FALSE(vm);
+    EXPECT_EQ(vm.get_raw_pointer(), nullptr);
+}
+
 TEST(cpp, vm_null)
 {
     const qrvmc::VM vm;
