@@ -19,6 +19,9 @@ qrvmc::bytes load_from_hex(const std::string& str)
     {
         const auto path = str.substr(1);
         std::ifstream file{path};
+        if (!file)
+            throw std::invalid_argument{"cannot open " + path};
+
         auto out = qrvmc::from_spaced_hex(std::istreambuf_iterator<char>{file},
                                           std::istreambuf_iterator<char>{});
         if (!out)
