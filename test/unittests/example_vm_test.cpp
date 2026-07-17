@@ -78,6 +78,14 @@ TEST_F(example_vm, push)
     EXPECT_EQ(r, Output("d0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef"));
 }
 
+TEST_F(example_vm, truncated_push)
+{
+    const auto r = execute_in_example_vm(1, "9f");
+    EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
+    EXPECT_EQ(r.gas_left, 0);
+    EXPECT_EQ(r.output_size, size_t{0});
+}
+
 TEST_F(example_vm, return_address)
 {
     // Yul: mstore(0, address()) return(0, 64)
@@ -116,6 +124,14 @@ TEST_F(example_vm, return_out_of_memory)
 {
     // Yul: return(1024, 1)
     const auto r = execute_in_example_vm(10, "6001610400f3");
+    EXPECT_EQ(r.status_code, QRVMC_FAILURE);
+    EXPECT_EQ(r.gas_left, 0);
+    EXPECT_EQ(r, Output(""));
+}
+
+TEST_F(example_vm, mstore_offset_overflow)
+{
+    const auto r = execute_in_example_vm(3, "600063ffffffff52");
     EXPECT_EQ(r.status_code, QRVMC_FAILURE);
     EXPECT_EQ(r.gas_left, 0);
     EXPECT_EQ(r, Output(""));
