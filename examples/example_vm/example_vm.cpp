@@ -116,7 +116,8 @@ struct Memory
         if (p == nullptr)
             return false;
 
-        std::memcpy(p, value_data, value_size);
+        if (value_size != 0)
+            std::memcpy(p, value_data, value_size);
         return true;
     }
 };

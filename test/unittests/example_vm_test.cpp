@@ -177,6 +177,17 @@ TEST_F(example_vm, call)
     EXPECT_EQ(host.recorded_calls[0].input_size, size_t{3});
 }
 
+TEST_F(example_vm, call_empty_output)
+{
+    // pseudo-Yul: call(3, 3, 3, 3, 3, 3, 3) return(0, msize())
+    const auto r = execute_in_example_vm(100, "6003600360036003600360036003f1596000f3");
+    EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
+    EXPECT_EQ(r.gas_left, 89);
+    EXPECT_EQ(r, Output("000000000000"));
+    ASSERT_EQ(host.recorded_calls.size(), size_t{1});
+    EXPECT_EQ(host.recorded_calls[0].input_size, size_t{3});
+}
+
 TEST_F(example_vm, calldataload_full)
 {
     // Yul: mstore(0, calldataload(2)) return(0, msize())
