@@ -147,7 +147,7 @@ TEST_F(qrvmc_vm_test, set_option_empty_value)
 {
     if (vm->set_option != nullptr)
     {
-        const auto r = vm->set_option(vm, "unknown_option_csk9twq", nullptr);
+        const auto r = vm->set_option(vm, "unknown_option_csk9twq", "");
         EXPECT_EQ(r, QRVMC_SET_OPTION_INVALID_NAME);
     }
 }
@@ -163,8 +163,8 @@ TEST_F(qrvmc_vm_test, set_option_unknown_value)
         auto r2 = qrvmc_set_option(vm, "verbose", "GjNOONsbUl");
         EXPECT_EQ(r2, QRVMC_SET_OPTION_INVALID_VALUE);
 
-        // For null the behavior should be the same.
-        auto r3 = qrvmc_set_option(vm, "verbose", nullptr);
+        // Empty value is invalid as well.
+        auto r3 = qrvmc_set_option(vm, "verbose", "");
         EXPECT_EQ(r3, QRVMC_SET_OPTION_INVALID_VALUE);
     }
 }

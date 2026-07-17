@@ -12,6 +12,7 @@
 #include <qrvmc/mocked_host.hpp>
 #include <qrvmc/qrvmc.hpp>
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstring>
@@ -774,6 +775,9 @@ TEST(cpp, host_call_result_copies_output)
     mockedHost.call_result.output_size = output.size();
     mockedHost.call_result.release = release_fn;
     mockedHost.call_result.create_address.bytes[63] = 0x42;
+    auto* call_result_storage = qrvmc_get_optional_storage(&mockedHost.call_result);
+    call_result_storage->bytes[64] = 0xa1;
+    call_result_storage->bytes[67] = 0xa4;
 
     {
         auto res1 = mockedHost.call({});
@@ -782,7 +786,14 @@ TEST(cpp, host_call_result_copies_output)
         EXPECT_EQ(res1.status_code, QRVMC_SUCCESS);
         EXPECT_EQ(res1.gas_left, 4321);
         EXPECT_EQ(res1.gas_refund, 12);
-        EXPECT_EQ(res1.create_address.bytes[63], 0x42);
+        const auto* res1_storage = qrvmc_get_const_optional_storage(&res1.raw());
+        const auto* res2_storage = qrvmc_get_const_optional_storage(&res2.raw());
+        EXPECT_TRUE(std::equal(call_result_storage->bytes,
+                               call_result_storage->bytes + sizeof(call_result_storage->bytes),
+                               res1_storage->bytes));
+        EXPECT_TRUE(std::equal(call_result_storage->bytes,
+                               call_result_storage->bytes + sizeof(call_result_storage->bytes),
+                               res2_storage->bytes));
         ASSERT_EQ(res1.output_size, output.size());
         ASSERT_EQ(res2.output_size, output.size());
         EXPECT_EQ(qrvmc::bytes(res1.output_data, res1.output_size), output);

@@ -391,7 +391,9 @@ public:
         }
         auto result = Result{call_result.status_code, call_result.gas_left, call_result.gas_refund,
                              call_result.output_data, call_result.output_size};
-        result.create_address = call_result.create_address;
+        const auto* src_storage = qrvmc_get_const_optional_storage(&call_result);
+        auto* dst_storage = qrvmc_get_optional_storage(&result.raw());
+        std::copy_n(src_storage->bytes, sizeof(src_storage->bytes), dst_storage->bytes);
         return result;
     }
 
