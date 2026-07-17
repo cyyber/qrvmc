@@ -41,3 +41,15 @@ TEST(helpers, release_result)
     qrvmc_release_result(&r2);
     EXPECT_TRUE(e);
 }
+
+TEST(helpers, make_result_rejects_null_output_with_nonzero_size)
+{
+    const auto result = qrvmc_make_result(QRVMC_SUCCESS, 42, 7, nullptr, 1);
+
+    EXPECT_EQ(result.status_code, QRVMC_FAILURE);
+    EXPECT_EQ(result.gas_left, 0);
+    EXPECT_EQ(result.gas_refund, 0);
+    EXPECT_EQ(result.output_data, nullptr);
+    EXPECT_EQ(result.output_size, 0);
+    EXPECT_EQ(result.release, nullptr);
+}
