@@ -224,6 +224,8 @@ TEST_F(qrvmc_vm_test, precompile_test)
             read_buffer(result.output_data, result.output_size);
         }
 
+        EXPECT_TRUE(qrvmc::is_zero(result.create_address));
+
         if (result.release != nullptr)
             result.release(&result);
     }
