@@ -10,6 +10,7 @@
 #include <qrvmc/qrvmc.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <vector>
 
@@ -141,8 +142,15 @@ public:
     qrvmc::bytes64 get_block_hash(int64_t number) const noexcept final
     {
         const int64_t current_block_number = get_tx_context().block_number;
+        constexpr auto block_hash_history = std::uint64_t{256};
 
-        return (number < current_block_number && number >= current_block_number - 256) ?
+        if (number >= current_block_number)
+            return {};
+
+        const auto distance = static_cast<std::uint64_t>(current_block_number) -
+                              static_cast<std::uint64_t>(number);
+
+        return distance <= block_hash_history ?
                    0xb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5f_bytes64 :
                    0x0000000000000000000000000000000000000000000000000000000000000000_bytes64;
     }

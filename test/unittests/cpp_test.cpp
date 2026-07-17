@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "../../examples/example_precompiles_vm/example_precompiles_vm.h"
+#include "../../examples/example_host.h"
 #include "../../examples/example_vm/example_vm.h"
 
 #include <qrvmc/mocked_host.hpp>
@@ -18,6 +19,7 @@
 #include <cstring>
 #include <limits>
 #include <map>
+#include <memory>
 #include <unordered_map>
 
 using namespace qrvmc::literals;
@@ -729,6 +731,37 @@ TEST(cpp, host)
     ASSERT_EQ(log.topics.size(), 2u);
     EXPECT_EQ(log.topics[0], qrvmc::bytes64{raw_topics[0]});
     EXPECT_EQ(log.topics[1], qrvmc::bytes64{raw_topics[1]});
+}
+
+TEST(cpp, example_host_get_block_hash_range)
+{
+    const auto* host_interface = example_host_get_interface();
+    ASSERT_NE(host_interface, nullptr);
+
+    const auto get_block_hash = [host_interface](int64_t current_block_number, int64_t number) {
+        auto tx_context = qrvmc_tx_context{};
+        tx_context.block_number = current_block_number;
+
+        auto context = std::unique_ptr<qrvmc_host_context, decltype(&example_host_destroy_context)>{
+            example_host_create_context(tx_context), example_host_destroy_context};
+        EXPECT_NE(context.get(), nullptr);
+        if (context == nullptr)
+            return qrvmc::bytes64{};
+
+        return qrvmc::bytes64{host_interface->get_block_hash(context.get(), number)};
+    };
+
+    constexpr auto expected_hash =
+        0xb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5f_bytes64;
+
+    EXPECT_EQ(get_block_hash(300, 299), expected_hash);
+    EXPECT_EQ(get_block_hash(300, 44), expected_hash);
+    EXPECT_EQ(get_block_hash(300, 43), qrvmc::bytes64{});
+    EXPECT_EQ(get_block_hash(300, 300), qrvmc::bytes64{});
+
+    constexpr auto int64_min = std::numeric_limits<int64_t>::min();
+    EXPECT_EQ(get_block_hash(int64_min + 10, int64_min), expected_hash);
+    EXPECT_EQ(get_block_hash(int64_min + 10, int64_min + 10), qrvmc::bytes64{});
 }
 
 TEST(cpp, host_call)
