@@ -66,6 +66,10 @@ TEST_F(qrvmc_vm_test, execute_call)
     {
         EXPECT_EQ(result.gas_left, 0);
     }
+    if (result.status_code != QRVMC_SUCCESS)
+    {
+        EXPECT_EQ(result.gas_refund, 0);
+    }
 
     if (result.output_data == nullptr)
     {
@@ -106,6 +110,10 @@ TEST_F(qrvmc_vm_test, execute_create)
     if (result.status_code != QRVMC_SUCCESS && result.status_code != QRVMC_REVERT)
     {
         EXPECT_EQ(result.gas_left, 0);
+    }
+    if (result.status_code != QRVMC_SUCCESS)
+    {
+        EXPECT_EQ(result.gas_refund, 0);
     }
 
     if (result.output_data == nullptr)
@@ -201,6 +209,10 @@ TEST_F(qrvmc_vm_test, precompile_test)
         if (result.status_code != QRVMC_SUCCESS && result.status_code != QRVMC_REVERT)
         {
             EXPECT_EQ(result.gas_left, 0);
+        }
+        if (result.status_code != QRVMC_SUCCESS)
+        {
+            EXPECT_EQ(result.gas_refund, 0);
         }
 
         if (result.output_data == nullptr)
