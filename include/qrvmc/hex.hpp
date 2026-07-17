@@ -19,7 +19,7 @@ using bytes_view = std::basic_string_view<uint8_t>;
 
 
 /// Encode a byte to a hex string.
-inline std::string hex(uint8_t b) noexcept
+inline std::string hex(uint8_t b)
 {
     static constexpr auto hex_digits = "0123456789abcdef";
     return {hex_digits[b >> 4], hex_digits[b & 0xf]};
@@ -61,7 +61,7 @@ inline constexpr int from_hex_digit(char h) noexcept
 /// @param out    The output iterator. It must satisfy output iterator concept.
 /// @return       True if successful, false if input is invalid hex.
 template <typename InputIt, typename OutputIt>
-inline constexpr bool from_hex(InputIt begin, InputIt end, OutputIt out) noexcept
+inline constexpr bool from_hex(InputIt begin, InputIt end, OutputIt out)
 {
     int hi_nibble = -1;  // Init with invalid value, should never be used.
     size_t i = 0;
@@ -169,7 +169,7 @@ constexpr std::optional<T> from_hex(std::string_view s) noexcept
 /// This can happen if a non-hex digit or odd number of digits is encountered.
 /// The whitespace (as defined by std::isspace) in the input is ignored.
 template <typename InputIterator>
-std::optional<bytes> from_spaced_hex(InputIterator begin, InputIterator end) noexcept
+std::optional<bytes> from_spaced_hex(InputIterator begin, InputIterator end)
 {
     bytes bs;
     if (!from_hex(skip_space_iterator{begin, end}, skip_space_iterator{end, end},
@@ -179,7 +179,7 @@ std::optional<bytes> from_spaced_hex(InputIterator begin, InputIterator end) noe
 }
 
 /// @copydoc from_spaced_hex
-inline std::optional<bytes> from_spaced_hex(std::string_view hex) noexcept
+inline std::optional<bytes> from_spaced_hex(std::string_view hex)
 {
     return from_spaced_hex(hex.begin(), hex.end());
 }

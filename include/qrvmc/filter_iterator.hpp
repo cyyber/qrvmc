@@ -71,7 +71,7 @@ public:
     }
 
     /// The dereference operator.
-    constexpr auto operator*() noexcept
+    constexpr value_type operator*() const noexcept
     {
         // We should not read from an input base iterator twice. So the only read is in
         // forward_to_next_value() and here we return the cached value.
@@ -79,10 +79,19 @@ public:
     }
 
     /// The increment operator.
-    constexpr void operator++() noexcept
+    constexpr filter_iterator& operator++() noexcept
     {
         ++base;
         forward_to_next_value();
+        return *this;
+    }
+
+    /// The post-increment operator.
+    constexpr filter_iterator operator++(int) noexcept
+    {
+        auto previous = *this;
+        ++*this;
+        return previous;
     }
 
     /// The equality operator.
