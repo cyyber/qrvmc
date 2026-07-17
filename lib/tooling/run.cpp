@@ -19,6 +19,12 @@ constexpr auto create_address = "Q0000000000000000000000000000000000000000000000
 /// The gas limit for contract creation.
 constexpr auto create_gas = 10'000'000;
 
+bytes_view output_view(const qrvmc::Result& result) noexcept
+{
+    return result.output_size == 0 ? bytes_view{} :
+                                     bytes_view{result.output_data, result.output_size};
+}
+
 auto bench(MockedHost& host,
            qrvmc::VM& vm,
            qrvmc_revision rev,
@@ -43,9 +49,9 @@ auto bench(MockedHost& host,
 
         if (result.gas_left != expected_result.gas_left)
             out << warning << "(gas used: " << (msg.gas - result.gas_left) << ")\n";
-        if (bytes_view{result.output_data, result.output_size} !=
-            bytes_view{expected_result.output_data, expected_result.output_size})
-            out << warning << "(output: " << hex({result.output_data, result.output_size}) << ")\n";
+        const auto result_output = output_view(result);
+        if (result_output != output_view(expected_result))
+            out << warning << "(output: " << hex(result_output) << ")\n";
 
         // Benchmark loop.
         const auto num_iterations = std::max(static_cast<int>(target_bench_time / probe_time), 1);
@@ -94,7 +100,7 @@ int run(VM& vm,
         }
 
         auto& created_account = host.accounts[create_address];
-        created_account.code = bytes(create_result.output_data, create_result.output_size);
+        created_account.code = bytes{output_view(create_result)};
 
         msg.recipient = create_address;
         exec_code = created_account.code;
@@ -110,7 +116,7 @@ int run(VM& vm,
     out << "Result:   " << result.status_code << "\nGas used: " << gas_used << "\n";
 
     if (result.status_code == QRVMC_SUCCESS || result.status_code == QRVMC_REVERT)
-        out << "Output:   " << hex({result.output_data, result.output_size}) << "\n";
+        out << "Output:   " << hex(output_view(result)) << "\n";
 
     return 0;
 }
