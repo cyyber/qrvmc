@@ -21,6 +21,11 @@ struct Output
 
     friend bool operator==(const qrvmc::Result& result, const Output& expected) noexcept
     {
+        if (result.output_size == 0)
+            return expected.bytes.empty();
+        if (result.output_data == nullptr)
+            return false;
+
         return expected.bytes.compare(0, qrvmc::bytes::npos, result.output_data,
                                       result.output_size) == 0;
     }

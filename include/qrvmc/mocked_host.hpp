@@ -419,17 +419,22 @@ public:
                   const bytes64 topics[],
                   size_t topics_count) noexcept override
     {
-        assert(data != nullptr || data_size == 0);
-        assert(topics != nullptr || topics_count == 0);
-
         auto& log = recorded_logs.emplace_back();
         log.creator = addr;
 
-        if (data != nullptr)
-            log.data.assign(data, data + data_size);
+        if (data_size != 0)
+        {
+            assert(data != nullptr);
+            if (data != nullptr)
+                log.data.assign(data, data + data_size);
+        }
 
-        if (topics != nullptr)
-            log.topics.assign(topics, topics + topics_count);
+        if (topics_count != 0)
+        {
+            assert(topics != nullptr);
+            if (topics != nullptr)
+                log.topics.assign(topics, topics + topics_count);
+        }
     }
 
     /// Record an account access.

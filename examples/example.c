@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
     const uint8_t code[] = "\x43\x60\x00\x55\x43\x60\x00\x52\x59\x60\x00\xf3";
     const size_t code_size = sizeof(code) - 1;
     const uint8_t input[] = "Hello World!";
-    const qrvmc_uint512be value = {{1, 0}};
+    qrvmc_uint512be value = {{0}};
     const qrvmc_address addr = {{0, 1, 2}};
     const int64_t gas = 200000;
     struct qrvmc_tx_context tx_context = {
@@ -58,6 +58,7 @@ int main(int argc, char* argv[])
         qrvmc_destroy(vm);
         return QRVMC_OUT_OF_MEMORY;
     }
+    value.bytes[63] = 1;
 
     struct qrvmc_message msg = {
         .kind = QRVMC_CALL,

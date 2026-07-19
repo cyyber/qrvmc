@@ -733,6 +733,21 @@ TEST(cpp, host)
     EXPECT_EQ(log.topics[1], qrvmc::bytes64{raw_topics[1]});
 }
 
+TEST(cpp, host_emit_log_empty_nonnull_ranges)
+{
+    qrvmc::MockedHost mockedHost;
+    auto host = qrvmc::HostContext{qrvmc::MockedHost::get_interface(), mockedHost.to_context()};
+    const auto creator = qrvmc::address{0x01};
+    const uint8_t log_data[] = {0xaa};
+    const qrvmc::bytes64 topics[] = {qrvmc::bytes64{0x01}};
+
+    host.emit_log(creator, log_data, 0, topics, 0);
+
+    ASSERT_EQ(mockedHost.recorded_logs.size(), 1u);
+    EXPECT_EQ(mockedHost.recorded_logs.back(),
+              (qrvmc::MockedHost::log_record{creator, {}, {}}));
+}
+
 TEST(cpp, example_host_get_block_hash_range)
 {
     const auto* host_interface = example_host_get_interface();
