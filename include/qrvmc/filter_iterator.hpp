@@ -40,10 +40,10 @@ struct filter_iterator
     using value_type = typename std::iterator_traits<BaseIterator>::value_type;
 
     /// The iterator pointer type.
-    using pointer = typename std::iterator_traits<BaseIterator>::pointer;
+    using pointer = void;
 
     /// The iterator reference type.
-    using reference = typename std::iterator_traits<BaseIterator>::reference;
+    using reference = value_type;
 
     /// The iterator category.
     using iterator_category = std::input_iterator_tag;

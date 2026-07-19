@@ -15,6 +15,7 @@
 #include <qrvmc/utils.h>
 
 #include <iterator>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -43,8 +44,13 @@ bool is_positive(int x) noexcept
 }  // namespace
 
 using filter_iter = qrvmc::filter_iterator<std::vector<int>::const_iterator, is_positive>;
+using mutable_filter_iter = qrvmc::filter_iterator<std::vector<int>::iterator, is_positive>;
 
 static_assert(std::input_iterator<filter_iter>);
+static_assert(std::input_iterator<mutable_filter_iter>);
+static_assert(std::is_same_v<typename std::iterator_traits<mutable_filter_iter>::pointer, void>);
+static_assert(std::is_same_v<typename std::iterator_traits<mutable_filter_iter>::reference,
+                             decltype(*std::declval<mutable_filter_iter&>())>);
 static_assert(!noexcept(filter_iter{std::declval<std::vector<int>::const_iterator>(),
                                     std::declval<std::vector<int>::const_iterator>()}));
 static_assert(!noexcept(*std::declval<const filter_iter&>()));
