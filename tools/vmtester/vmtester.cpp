@@ -20,7 +20,7 @@ public:
 
     cli_parser(const char* app_name,
                const char* app_version,
-               std::vector<std::string> args_names) noexcept
+               std::vector<std::string> args_names)
       : application_name{app_name},
         application_version{app_version},
         arguments_names{std::move(args_names)}

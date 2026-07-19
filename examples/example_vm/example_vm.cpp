@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <new>
 
 /// The Example VM methods, helper and types are contained in the anonymous namespace.
 /// Technically, this limits the visibility of these elements (internal linkage).
@@ -421,5 +422,5 @@ ExampleVM::ExampleVM()
 
 extern "C" qrvmc_vm* qrvmc_create_example_vm()
 {
-    return new ExampleVM;
+    return new (std::nothrow) ExampleVM;
 }

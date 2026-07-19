@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <map>
+#include <new>
 #include <vector>
 
 using namespace qrvmc::literals;
@@ -193,7 +194,10 @@ const qrvmc_host_interface* example_host_get_interface()
 
 qrvmc_host_context* example_host_create_context(qrvmc_tx_context tx_context)
 {
-    auto host = new ExampleHost{tx_context};
+    auto host = new (std::nothrow) ExampleHost{tx_context};
+    if (host == nullptr)
+        return nullptr;
+
     return host->to_context();
 }
 
