@@ -15,6 +15,7 @@
 #include <qrvmc/utils.h>
 
 #include <iterator>
+#include <utility>
 #include <vector>
 
 // Include again to check if headers have proper include guards.
@@ -41,6 +42,13 @@ bool is_positive(int x) noexcept
 }
 }  // namespace
 
-static_assert(
-    std::input_iterator<qrvmc::filter_iterator<std::vector<int>::const_iterator, is_positive>>);
+using filter_iter = qrvmc::filter_iterator<std::vector<int>::const_iterator, is_positive>;
+
+static_assert(std::input_iterator<filter_iter>);
+static_assert(!noexcept(filter_iter{std::declval<std::vector<int>::const_iterator>(),
+                                    std::declval<std::vector<int>::const_iterator>()}));
+static_assert(!noexcept(*std::declval<const filter_iter&>()));
+static_assert(!noexcept(++std::declval<filter_iter&>()));
+static_assert(!noexcept(std::declval<filter_iter&>()++));
+static_assert(!noexcept(std::declval<const filter_iter&>() == std::declval<const filter_iter&>()));
 #endif
