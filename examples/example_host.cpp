@@ -10,7 +10,9 @@
 #include <qrvmc/qrvmc.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
+#include <new>
 #include <vector>
 
 using namespace qrvmc::literals;
@@ -120,8 +122,13 @@ public:
 
         const auto n = std::min(buffer_size, code.size() - code_offset);
 
-        if (n > 0)
-            std::copy_n(&code[code_offset], n, buffer_data);
+        if (n == 0)
+            return 0;
+
+        if (buffer_data == nullptr)
+            return 0;
+
+        std::copy_n(&code[code_offset], n, buffer_data);
         return n;
     }
 
@@ -136,8 +143,15 @@ public:
     qrvmc::bytes64 get_block_hash(int64_t number) const noexcept final
     {
         const int64_t current_block_number = get_tx_context().block_number;
+        constexpr auto block_hash_history = std::uint64_t{256};
 
-        return (number < current_block_number && number >= current_block_number - 256) ?
+        if (number >= current_block_number)
+            return {};
+
+        const auto distance = static_cast<std::uint64_t>(current_block_number) -
+                              static_cast<std::uint64_t>(number);
+
+        return distance <= block_hash_history ?
                    0xb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5f_bytes64 :
                    0x0000000000000000000000000000000000000000000000000000000000000000_bytes64;
     }
@@ -180,7 +194,10 @@ const qrvmc_host_interface* example_host_get_interface()
 
 qrvmc_host_context* example_host_create_context(qrvmc_tx_context tx_context)
 {
-    auto host = new ExampleHost{tx_context};
+    auto host = new (std::nothrow) ExampleHost{tx_context};
+    if (host == nullptr)
+        return nullptr;
+
     return host->to_context();
 }
 

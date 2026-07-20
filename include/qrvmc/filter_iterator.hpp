@@ -40,10 +40,10 @@ struct filter_iterator
     using value_type = typename std::iterator_traits<BaseIterator>::value_type;
 
     /// The iterator pointer type.
-    using pointer = typename std::iterator_traits<BaseIterator>::pointer;
+    using pointer = void;
 
     /// The iterator reference type.
-    using reference = typename std::iterator_traits<BaseIterator>::reference;
+    using reference = value_type;
 
     /// The iterator category.
     using iterator_category = std::input_iterator_tag;
@@ -53,7 +53,7 @@ private:
     BaseIterator base_end;
     value_type value;
 
-    constexpr void forward_to_next_value() noexcept
+    constexpr void forward_to_next_value()
     {
         for (; base != base_end; ++base)
         {
@@ -65,13 +65,13 @@ private:
 
 public:
     /// The constructor of the base iterator pair.
-    constexpr filter_iterator(BaseIterator it, BaseIterator end) noexcept : base{it}, base_end{end}
+    constexpr filter_iterator(BaseIterator it, BaseIterator end) : base{it}, base_end{end}
     {
         forward_to_next_value();
     }
 
     /// The dereference operator.
-    constexpr auto operator*() noexcept
+    constexpr value_type operator*() const
     {
         // We should not read from an input base iterator twice. So the only read is in
         // forward_to_next_value() and here we return the cached value.
@@ -79,17 +79,26 @@ public:
     }
 
     /// The increment operator.
-    constexpr void operator++() noexcept
+    constexpr filter_iterator& operator++()
     {
         ++base;
         forward_to_next_value();
+        return *this;
+    }
+
+    /// The post-increment operator.
+    constexpr filter_iterator operator++(int)
+    {
+        auto previous = *this;
+        ++*this;
+        return previous;
     }
 
     /// The equality operator.
-    constexpr bool operator==(const filter_iterator& o) const noexcept { return base == o.base; }
+    constexpr bool operator==(const filter_iterator& o) const { return base == o.base; }
 
     /// The inequality operator.
-    constexpr bool operator!=(const filter_iterator& o) const noexcept { return base != o.base; }
+    constexpr bool operator!=(const filter_iterator& o) const { return base != o.base; }
 };
 
 /// The input filter iterator which skips whitespace characters from the base input iterator.

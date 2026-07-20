@@ -111,6 +111,17 @@ TEST(tool_commands, create_copy_input_to_output)
                     "0c49c400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", true));
 }
 
+TEST(tool_commands, create_empty_runtime_code)
+{
+    // Create: return(0, 0)
+    auto vm = qrvmc::VM{qrvmc_create_example_vm()};
+    std::ostringstream out;
+
+    const auto exit_code = run(vm, QRVMC_ZOND, 200, *from_hex("60006000f3"), {}, true, false, out);
+    EXPECT_EQ(exit_code, 0);
+    EXPECT_EQ(out.str(), out_pattern("Zond", 200, "success", 0, "", true));
+}
+
 TEST(tool_commands, create_failure_stack_underflow)
 {
     // Contract: n/a

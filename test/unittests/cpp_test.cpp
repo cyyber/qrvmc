@@ -7,15 +7,19 @@
 #include <vector>
 
 #include "../../examples/example_precompiles_vm/example_precompiles_vm.h"
+#include "../../examples/example_host.h"
 #include "../../examples/example_vm/example_vm.h"
 
 #include <qrvmc/mocked_host.hpp>
 #include <qrvmc/qrvmc.hpp>
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstring>
+#include <limits>
 #include <map>
+#include <memory>
 #include <unordered_map>
 
 using namespace qrvmc::literals;
@@ -530,6 +534,14 @@ TEST(cpp, vm_set_option_in_constructor)
     EXPECT_EQ(num_calls, 2);
 }
 
+TEST(cpp, vm_set_option_in_constructor_with_null_vm)
+{
+    const auto vm = qrvmc::VM{nullptr, {{"o", "1"}}};
+
+    EXPECT_FALSE(vm);
+    EXPECT_EQ(vm.get_raw_pointer(), nullptr);
+}
+
 TEST(cpp, vm_null)
 {
     const qrvmc::VM vm;
@@ -582,14 +594,15 @@ TEST(cpp, vm_move)
     }
     EXPECT_EQ(destroy_counter, 4);
     {
-        // Moving to itself will destroy the VM and reset the qrvmc::vm.
+        // Moving to itself leaves the VM unchanged.
         auto v1 = template_vm;
 
         auto vm1 = qrvmc::VM{&v1};
         auto& vm1_ref = vm1;
         vm1 = std::move(vm1_ref);
-        EXPECT_EQ(destroy_counter, 5);  // Already destroyed.
-        EXPECT_FALSE(vm1);              // Null.
+        EXPECT_EQ(destroy_counter, 4);
+        EXPECT_TRUE(vm1);
+        EXPECT_EQ(vm1.get_raw_pointer(), &v1);
     }
     EXPECT_EQ(destroy_counter, 5);
 }
@@ -612,6 +625,25 @@ TEST(cpp, vm_execute_precompiles)
     EXPECT_EQ(res.gas_left, 0);
     ASSERT_EQ(res.output_size, input.size());
     EXPECT_TRUE(std::equal(input.begin(), input.end(), res.output_data));
+}
+
+TEST(cpp, vm_execute_precompiles_huge_input_runs_out_of_gas)
+{
+    auto vm = qrvmc::VM{qrvmc_create_example_precompiles_vm()};
+
+    const auto input = uint8_t{};
+
+    qrvmc_message msg{};
+    msg.code_address.bytes[63] = 4;  // Call Identify precompile at address 0x4.
+    msg.input_data = &input;
+    msg.input_size = std::numeric_limits<size_t>::max();
+    msg.gas = 0;
+
+    auto res = vm.execute(QRVMC_MAX_REVISION, msg, nullptr, 0);
+    EXPECT_EQ(res.status_code, QRVMC_OUT_OF_GAS);
+    EXPECT_EQ(res.gas_left, 0);
+    EXPECT_EQ(res.output_data, nullptr);
+    EXPECT_EQ(res.output_size, size_t{0});
 }
 
 TEST(cpp, vm_execute_with_null_host)
@@ -655,12 +687,96 @@ TEST(cpp, host)
     EXPECT_EQ(host.get_code_hash(a), qrvmc::bytes64{});
     EXPECT_EQ(host.copy_code(a, 0, nullptr, 0), size_t{0});
 
+    mockedHost.accounts[a].code = {0xaa, 0xbb};
+    uint8_t code_buffer[2] = {};
+    EXPECT_EQ(host.copy_code(a, 0, code_buffer, sizeof(code_buffer)), size_t{2});
+    EXPECT_EQ(code_buffer[0], 0xaa);
+    EXPECT_EQ(code_buffer[1], 0xbb);
+    EXPECT_EQ(host.copy_code(a, 0, nullptr, sizeof(code_buffer)), size_t{0});
+
     auto tx = host.get_tx_context();
     EXPECT_EQ(host.get_tx_context().block_number, tx.block_number);
 
     EXPECT_EQ(host.get_block_hash(0), qrvmc::bytes64{});
 
     host.emit_log(a, nullptr, 0, nullptr, 0);
+    ASSERT_EQ(mockedHost.recorded_logs.size(), 1u);
+    EXPECT_EQ(mockedHost.recorded_logs.back(), (qrvmc::MockedHost::log_record{a, {}, {}}));
+
+    const uint8_t log_data[] = {0xaa, 0xbb};
+    const qrvmc::bytes64 cxx_topics[] = {qrvmc::bytes64{0x0102}, qrvmc::bytes64{0x0304}};
+
+    host.emit_log(a, log_data, sizeof(log_data), cxx_topics, 2);
+    ASSERT_EQ(mockedHost.recorded_logs.size(), 2u);
+
+    const auto& cxx_log = mockedHost.recorded_logs.back();
+    EXPECT_EQ(cxx_log.creator, a);
+    EXPECT_EQ(cxx_log.data, (qrvmc::bytes{log_data, log_data + sizeof(log_data)}));
+    ASSERT_EQ(cxx_log.topics.size(), 2u);
+    EXPECT_EQ(cxx_log.topics[0], cxx_topics[0]);
+    EXPECT_EQ(cxx_log.topics[1], cxx_topics[1]);
+
+    qrvmc_bytes64 raw_topics[2] = {};
+    raw_topics[0].bytes[0] = 0x01;
+    raw_topics[0].bytes[63] = 0x02;
+    raw_topics[1].bytes[0] = 0x03;
+    raw_topics[1].bytes[63] = 0x04;
+
+    host_interface.emit_log(host_context, &a, log_data, sizeof(log_data), raw_topics, 2);
+    ASSERT_EQ(mockedHost.recorded_logs.size(), 3u);
+
+    const auto& log = mockedHost.recorded_logs.back();
+    EXPECT_EQ(log.creator, a);
+    EXPECT_EQ(log.data, (qrvmc::bytes{log_data, log_data + sizeof(log_data)}));
+    ASSERT_EQ(log.topics.size(), 2u);
+    EXPECT_EQ(log.topics[0], qrvmc::bytes64{raw_topics[0]});
+    EXPECT_EQ(log.topics[1], qrvmc::bytes64{raw_topics[1]});
+}
+
+TEST(cpp, host_emit_log_empty_nonnull_ranges)
+{
+    qrvmc::MockedHost mockedHost;
+    auto host = qrvmc::HostContext{qrvmc::MockedHost::get_interface(), mockedHost.to_context()};
+    const auto creator = qrvmc::address{0x01};
+    const uint8_t log_data[] = {0xaa};
+    const qrvmc::bytes64 topics[] = {qrvmc::bytes64{0x01}};
+
+    host.emit_log(creator, log_data, 0, topics, 0);
+
+    ASSERT_EQ(mockedHost.recorded_logs.size(), 1u);
+    EXPECT_EQ(mockedHost.recorded_logs.back(),
+              (qrvmc::MockedHost::log_record{creator, {}, {}}));
+}
+
+TEST(cpp, example_host_get_block_hash_range)
+{
+    const auto* host_interface = example_host_get_interface();
+    ASSERT_NE(host_interface, nullptr);
+
+    const auto get_block_hash = [host_interface](int64_t current_block_number, int64_t number) {
+        auto tx_context = qrvmc_tx_context{};
+        tx_context.block_number = current_block_number;
+
+        auto context = std::unique_ptr<qrvmc_host_context, decltype(&example_host_destroy_context)>{
+            example_host_create_context(tx_context), example_host_destroy_context};
+        EXPECT_NE(context.get(), nullptr);
+        if (context == nullptr)
+            return qrvmc::bytes64{};
+
+        return qrvmc::bytes64{host_interface->get_block_hash(context.get(), number)};
+    };
+
+    constexpr auto expected_hash =
+        0xb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5fb10c8a5f_bytes64;
+
+    EXPECT_EQ(get_block_hash(300, 299), expected_hash);
+    EXPECT_EQ(get_block_hash(300, 44), expected_hash);
+    EXPECT_EQ(get_block_hash(300, 43), qrvmc::bytes64{});
+    EXPECT_EQ(get_block_hash(300, 300), qrvmc::bytes64{});
+
+    constexpr auto int64_min = std::numeric_limits<int64_t>::min();
+    EXPECT_EQ(get_block_hash(int64_min + 10, int64_min), expected_hash);
+    EXPECT_EQ(get_block_hash(int64_min + 10, int64_min + 10), qrvmc::bytes64{});
 }
 
 TEST(cpp, host_call)
@@ -683,6 +799,15 @@ TEST(cpp, host_call)
     EXPECT_EQ(recorded_msg1.input_data, nullptr);
     EXPECT_EQ(recorded_msg1.input_size, 0u);
 
+    auto invalid_msg = qrvmc_message{};
+    invalid_msg.input_data = nullptr;
+    invalid_msg.input_size = 3;
+    host.call(invalid_msg);
+    ASSERT_EQ(mockedHost.recorded_calls.size(), 2u);
+    const auto& recorded_invalid_msg = mockedHost.recorded_calls.back();
+    EXPECT_EQ(recorded_invalid_msg.input_data, nullptr);
+    EXPECT_EQ(recorded_invalid_msg.input_size, 0u);
+
     auto msg = qrvmc_message{};
     msg.gas = 1;
     qrvmc::bytes input{0xa, 0xb, 0xc};
@@ -695,7 +820,7 @@ TEST(cpp, host_call)
     mockedHost.call_result.output_size = 1;
 
     auto res = host.call(msg);
-    ASSERT_EQ(mockedHost.recorded_calls.size(), 2u);
+    ASSERT_EQ(mockedHost.recorded_calls.size(), 3u);
     const auto& recorded_msg2 = mockedHost.recorded_calls.back();
     EXPECT_EQ(recorded_msg2.kind, QRVMC_CALL);
     EXPECT_EQ(recorded_msg2.gas, 1);
@@ -708,6 +833,55 @@ TEST(cpp, host_call)
     EXPECT_EQ(res.gas_left, 4321);
     ASSERT_EQ(res.output_size, 1u);
     EXPECT_EQ(*res.output_data, input[2]);
+}
+
+TEST(cpp, host_call_result_copies_output)
+{
+    static auto release_called = 0;
+    release_called = 0;
+    auto release_fn = [](const qrvmc_result*) noexcept { ++release_called; };
+
+    qrvmc::MockedHost mockedHost;
+    const qrvmc::bytes output{0xa, 0xb, 0xc};
+    mockedHost.call_result.status_code = QRVMC_SUCCESS;
+    mockedHost.call_result.gas_left = 4321;
+    mockedHost.call_result.gas_refund = 12;
+    mockedHost.call_result.output_data = output.data();
+    mockedHost.call_result.output_size = output.size();
+    mockedHost.call_result.release = release_fn;
+    mockedHost.call_result.create_address.bytes[63] = 0x42;
+    auto* call_result_storage = qrvmc_get_optional_storage(&mockedHost.call_result);
+    call_result_storage->bytes[64] = 0xa1;
+    call_result_storage->bytes[67] = 0xa4;
+
+    {
+        auto res1 = mockedHost.call({});
+        auto res2 = mockedHost.call({});
+
+        EXPECT_EQ(res1.status_code, QRVMC_SUCCESS);
+        EXPECT_EQ(res1.gas_left, 4321);
+        EXPECT_EQ(res1.gas_refund, 12);
+        const auto* res1_storage = qrvmc_get_const_optional_storage(&res1.raw());
+        const auto* res2_storage = qrvmc_get_const_optional_storage(&res2.raw());
+        EXPECT_TRUE(std::equal(call_result_storage->bytes,
+                               call_result_storage->bytes + sizeof(call_result_storage->bytes),
+                               res1_storage->bytes));
+        EXPECT_TRUE(std::equal(call_result_storage->bytes,
+                               call_result_storage->bytes + sizeof(call_result_storage->bytes),
+                               res2_storage->bytes));
+        ASSERT_EQ(res1.output_size, output.size());
+        ASSERT_EQ(res2.output_size, output.size());
+        EXPECT_EQ(qrvmc::bytes(res1.output_data, res1.output_size), output);
+        EXPECT_EQ(qrvmc::bytes(res2.output_data, res2.output_size), output);
+        EXPECT_NE(res1.output_data, mockedHost.call_result.output_data);
+        EXPECT_NE(res2.output_data, mockedHost.call_result.output_data);
+        EXPECT_NE(res1.output_data, res2.output_data);
+    }
+
+    EXPECT_EQ(release_called, 0);
+    qrvmc_release_result(&mockedHost.call_result);
+    EXPECT_EQ(release_called, 1);
+    mockedHost.call_result = {};
 }
 
 TEST(cpp, result_raii)
@@ -782,6 +956,21 @@ TEST(cpp, result_move)
         r2 = std::move(r1);
     }
     EXPECT_EQ(release_called, 2);
+
+    release_called = 0;
+    {
+        auto raw = qrvmc_result{};
+        raw.gas_left = 3;
+        raw.release = release_fn;
+
+        auto r = qrvmc::Result{raw};
+        auto& r_ref = r;
+        r = std::move(r_ref);
+
+        EXPECT_EQ(r.gas_left, raw.gas_left);
+        EXPECT_EQ(release_called, 0);
+    }
+    EXPECT_EQ(release_called, 1);
 }
 
 TEST(cpp, result_create_no_output)

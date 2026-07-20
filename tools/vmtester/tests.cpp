@@ -66,14 +66,17 @@ TEST_F(qrvmc_vm_test, execute_call)
     {
         EXPECT_EQ(result.gas_left, 0);
     }
+    if (result.status_code != QRVMC_SUCCESS)
+    {
+        EXPECT_EQ(result.gas_refund, 0);
+    }
 
     if (result.output_data == nullptr)
     {
         EXPECT_EQ(result.output_size, size_t{0});
     }
-    else
+    else if (result.output_size != 0)
     {
-        EXPECT_NE(result.output_size, size_t{0});
         read_buffer(result.output_data, result.output_size);
     }
 
@@ -108,14 +111,17 @@ TEST_F(qrvmc_vm_test, execute_create)
     {
         EXPECT_EQ(result.gas_left, 0);
     }
+    if (result.status_code != QRVMC_SUCCESS)
+    {
+        EXPECT_EQ(result.gas_refund, 0);
+    }
 
     if (result.output_data == nullptr)
     {
         EXPECT_EQ(result.output_size, size_t{0});
     }
-    else
+    else if (result.output_size != 0)
     {
-        EXPECT_NE(result.output_size, size_t{0});
         read_buffer(result.output_data, result.output_size);
     }
 
@@ -141,7 +147,7 @@ TEST_F(qrvmc_vm_test, set_option_empty_value)
 {
     if (vm->set_option != nullptr)
     {
-        const auto r = vm->set_option(vm, "unknown_option_csk9twq", nullptr);
+        const auto r = vm->set_option(vm, "unknown_option_csk9twq", "");
         EXPECT_EQ(r, QRVMC_SET_OPTION_INVALID_NAME);
     }
 }
@@ -157,8 +163,8 @@ TEST_F(qrvmc_vm_test, set_option_unknown_value)
         auto r2 = qrvmc_set_option(vm, "verbose", "GjNOONsbUl");
         EXPECT_EQ(r2, QRVMC_SET_OPTION_INVALID_VALUE);
 
-        // For null the behavior should be the same.
-        auto r3 = qrvmc_set_option(vm, "verbose", nullptr);
+        // Empty value is invalid as well.
+        auto r3 = qrvmc_set_option(vm, "verbose", "");
         EXPECT_EQ(r3, QRVMC_SET_OPTION_INVALID_VALUE);
     }
 }
@@ -171,11 +177,12 @@ TEST_F(qrvmc_vm_test, precompile_test)
         return;
 
     // Iterate every address (as per EIP-1352)
-    for (size_t i = 0; i < 0xffff; i++)
+    constexpr auto prefix_size = sizeof(qrvmc_address) - 2;
+    for (size_t i = 0; i < 0x10000; i++)
     {
         auto addr = qrvmc_address{};
-        addr.bytes[18] = static_cast<uint8_t>(i >> 8);
-        addr.bytes[19] = static_cast<uint8_t>(i & 0xff);
+        addr.bytes[prefix_size] = static_cast<uint8_t>(i >> 8);
+        addr.bytes[prefix_size + 1] = static_cast<uint8_t>(i & 0xff);
 
         const qrvmc_message msg{QRVMC_CALL,
                                 0,
@@ -203,6 +210,10 @@ TEST_F(qrvmc_vm_test, precompile_test)
         {
             EXPECT_EQ(result.gas_left, 0);
         }
+        if (result.status_code != QRVMC_SUCCESS)
+        {
+            EXPECT_EQ(result.gas_refund, 0);
+        }
 
         if (result.output_data == nullptr)
         {
@@ -212,6 +223,8 @@ TEST_F(qrvmc_vm_test, precompile_test)
         {
             read_buffer(result.output_data, result.output_size);
         }
+
+        EXPECT_TRUE(qrvmc::is_zero(result.create_address));
 
         if (result.release != nullptr)
             result.release(&result);

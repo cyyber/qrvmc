@@ -118,6 +118,8 @@ static void qrvmc_free_result_memory(const struct qrvmc_result* result)
 ///
 /// In case of memory allocation failure, the result has all fields zeroed
 /// and only qrvmc_result::status_code is set to ::QRVMC_OUT_OF_MEMORY internal error.
+/// In case @p output_data is NULL while @p output_size is non-zero, the result has
+/// all fields zeroed and only qrvmc_result::status_code is set to ::QRVMC_FAILURE.
 ///
 /// @param status_code  The status code.
 /// @param gas_left     The amount of gas left.
@@ -135,6 +137,12 @@ static inline struct qrvmc_result qrvmc_make_result(enum qrvmc_status_code statu
 
     if (output_size != 0)
     {
+        if (output_data == NULL)
+        {
+            result.status_code = QRVMC_FAILURE;
+            return result;
+        }
+
         uint8_t* buffer = (uint8_t*)malloc(output_size);
 
         if (!buffer)

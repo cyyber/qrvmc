@@ -29,6 +29,7 @@ target_link_libraries(
     qrvmc-unittests
     PRIVATE
     loader-mocked
+    qrvmc-example-host
     qrvmc::example-vm-static
     qrvmc::example-precompiles-vm-static
     qrvmc::instructions

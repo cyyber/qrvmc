@@ -21,6 +21,11 @@ struct Output
 
     friend bool operator==(const qrvmc::Result& result, const Output& expected) noexcept
     {
+        if (result.output_size == 0)
+            return expected.bytes.empty();
+        if (result.output_data == nullptr)
+            return false;
+
         return expected.bytes.compare(0, qrvmc::bytes::npos, result.output_data,
                                       result.output_size) == 0;
     }
@@ -78,6 +83,14 @@ TEST_F(example_vm, push)
     EXPECT_EQ(r, Output("d0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef"));
 }
 
+TEST_F(example_vm, truncated_push)
+{
+    const auto r = execute_in_example_vm(1, "9f");
+    EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
+    EXPECT_EQ(r.gas_left, 0);
+    EXPECT_EQ(r.output_size, size_t{0});
+}
+
 TEST_F(example_vm, return_address)
 {
     // Yul: mstore(0, address()) return(0, 64)
@@ -121,6 +134,14 @@ TEST_F(example_vm, return_out_of_memory)
     EXPECT_EQ(r, Output(""));
 }
 
+TEST_F(example_vm, mstore_offset_overflow)
+{
+    const auto r = execute_in_example_vm(3, "600063ffffffff52");
+    EXPECT_EQ(r.status_code, QRVMC_FAILURE);
+    EXPECT_EQ(r.gas_left, 0);
+    EXPECT_EQ(r, Output(""));
+}
+
 TEST_F(example_vm, revert_out_of_memory)
 {
     // Yul: revert(512, 513)
@@ -158,6 +179,17 @@ TEST_F(example_vm, call)
               0x0000000000000000000000000000000000000000000000000000000000000003_bytes64);
     EXPECT_EQ(host.recorded_calls[0].recipient,
               "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003"_address);
+    EXPECT_EQ(host.recorded_calls[0].input_size, size_t{3});
+}
+
+TEST_F(example_vm, call_empty_output)
+{
+    // pseudo-Yul: call(3, 3, 3, 3, 3, 3, 3) return(0, msize())
+    const auto r = execute_in_example_vm(100, "6003600360036003600360036003f1596000f3");
+    EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
+    EXPECT_EQ(r.gas_left, 89);
+    EXPECT_EQ(r, Output("000000000000"));
+    ASSERT_EQ(host.recorded_calls.size(), size_t{1});
     EXPECT_EQ(host.recorded_calls[0].input_size, size_t{3});
 }
 

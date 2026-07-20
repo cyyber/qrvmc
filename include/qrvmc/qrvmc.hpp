@@ -392,11 +392,7 @@ public:
     explicit Result(const qrvmc_result& res) noexcept : qrvmc_result{res} {}
 
     /// Destructor responsible for automatically releasing attached resources.
-    ~Result() noexcept
-    {
-        if (release != nullptr)
-            release(this);
-    }
+    ~Result() noexcept { release_resources(); }
 
     /// Move constructor.
     Result(Result&& other) noexcept : qrvmc_result{other}
@@ -406,15 +402,16 @@ public:
 
     /// Move assignment operator.
     ///
-    /// The self-assignment MUST never happen.
-    ///
     /// @param other The other result object.
     /// @return      The reference to the left-hand side object.
     Result& operator=(Result&& other) noexcept
     {
-        this->~Result();                            // Release this object.
-        static_cast<qrvmc_result&>(*this) = other;  // Copy data.
-        other.release = nullptr;                    // Disable releasing of the rvalue object.
+        if (this != &other)
+        {
+            release_resources();                        // Release this object.
+            static_cast<qrvmc_result&>(*this) = other;  // Copy data.
+            other.release = nullptr;                    // Disable releasing of the rvalue object.
+        }
         return *this;
     }
 
@@ -437,6 +434,16 @@ public:
         const auto out = qrvmc_result{*this};  // Copy data.
         this->release = nullptr;               // Disable releasing of this object.
         return out;
+    }
+
+private:
+    void release_resources() noexcept
+    {
+        if (release != nullptr)
+        {
+            release(this);
+            release = nullptr;
+        }
     }
 };
 
@@ -576,7 +583,17 @@ public:
                   const bytes64 topics[],
                   size_t topics_count) noexcept final
     {
-        host->emit_log(context, &addr, data, data_size, topics, topics_count);
+        constexpr auto max_log_topics = size_t{4};
+        qrvmc_bytes64 topic_copy[max_log_topics] = {};
+
+        auto copied_topics_count = topics_count <= max_log_topics ? topics_count : max_log_topics;
+        if (topics == nullptr)
+            copied_topics_count = 0;
+
+        for (size_t i = 0; i < copied_topics_count; ++i)
+            topic_copy[i] = topics[i];
+
+        host->emit_log(context, &addr, data, data_size, topic_copy, copied_topics_count);
     }
 
     qrvmc_access_status access_account(const address& address) noexcept final
@@ -639,11 +656,7 @@ public:
     explicit VM(qrvmc_vm* vm) noexcept : m_instance{vm} {}
 
     /// Destructor responsible for automatically destroying the VM instance.
-    ~VM() noexcept
-    {
-        if (m_instance != nullptr)
-            m_instance->destroy(m_instance);
-    }
+    ~VM() noexcept { reset(); }
 
     VM(const VM&) = delete;
     VM& operator=(const VM&) = delete;
@@ -654,9 +667,12 @@ public:
     /// Move assignment operator.
     VM& operator=(VM&& other) noexcept
     {
-        this->~VM();
-        m_instance = other.m_instance;
-        other.m_instance = nullptr;
+        if (this != &other)
+        {
+            reset();
+            m_instance = other.m_instance;
+            other.m_instance = nullptr;
+        }
         return *this;
     }
 
@@ -741,6 +757,15 @@ public:
     qrvmc_vm* get_raw_pointer() const noexcept { return m_instance; }
 
 private:
+    void reset() noexcept
+    {
+        if (m_instance != nullptr)
+        {
+            m_instance->destroy(m_instance);
+            m_instance = nullptr;
+        }
+    }
+
     qrvmc_vm* m_instance = nullptr;
 };
 
@@ -749,6 +774,9 @@ inline VM::VM(qrvmc_vm* vm,
   : m_instance{vm}
 {
     // This constructor is implemented outside of the class definition to workaround a doxygen bug.
+    if (m_instance == nullptr)
+        return;
+
     for (const auto& option : options)
         set_option(option.first, option.second);
 }
@@ -822,8 +850,17 @@ inline void emit_log(qrvmc_host_context* h,
                      const qrvmc_bytes64 topics[],
                      size_t num_topics) noexcept
 {
-    Host::from_context(h)->emit_log(*addr, data, data_size, static_cast<const bytes64*>(topics),
-                                    num_topics);
+    constexpr auto max_log_topics = size_t{4};
+    bytes64 topic_copy[max_log_topics] = {};
+
+    auto copied_topics_count = num_topics <= max_log_topics ? num_topics : max_log_topics;
+    if (topics == nullptr)
+        copied_topics_count = 0;
+
+    for (size_t i = 0; i < copied_topics_count; ++i)
+        topic_copy[i] = bytes64{topics[i]};
+
+    Host::from_context(h)->emit_log(*addr, data, data_size, topic_copy, copied_topics_count);
 }
 
 inline qrvmc_access_status access_account(qrvmc_host_context* h, const qrvmc_address* addr) noexcept

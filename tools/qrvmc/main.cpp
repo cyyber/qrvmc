@@ -15,10 +15,13 @@ namespace
 /// @todo The file content is expected to be a hex string but not validated.
 qrvmc::bytes load_from_hex(const std::string& str)
 {
-    if (str[0] == '@')  // The argument is file path.
+    if (!str.empty() && str[0] == '@')  // The argument is file path.
     {
         const auto path = str.substr(1);
         std::ifstream file{path};
+        if (!file)
+            throw std::invalid_argument{"cannot open " + path};
+
         auto out = qrvmc::from_spaced_hex(std::istreambuf_iterator<char>{file},
                                           std::istreambuf_iterator<char>{});
         if (!out)

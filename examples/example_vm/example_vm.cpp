@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <new>
 
 /// The Example VM methods, helper and types are contained in the anonymous namespace.
 /// Technically, this limits the visibility of these elements (internal linkage).
@@ -97,10 +98,10 @@ struct Memory
     /// or nullptr if the memory cannot be expanded to the required size.
     uint8_t* expand(uint32_t offset, uint32_t region_size)
     {
-        uint32_t new_size = offset + region_size;
-        if (new_size > sizeof(data))
+        if (offset > sizeof(data) || region_size > sizeof(data) - offset)
             return nullptr;  // Cannot expand more than fixed max memory size.
 
+        const auto new_size = offset + region_size;
         if (new_size > size)
             size = new_size;  // Update current memory size.
 
@@ -116,7 +117,8 @@ struct Memory
         if (p == nullptr)
             return false;
 
-        std::memcpy(p, value_data, value_size);
+        if (value_size != 0)
+            std::memcpy(p, value_data, value_size);
         return true;
     }
 };
@@ -328,7 +330,9 @@ qrvmc_result execute(qrvmc_vm* instance,
             qrvmc_uint512be value = {};
             size_t num_push_bytes = size_t{code[pc]} - OP_PUSH1 + 1;
             size_t offset = sizeof(value) - num_push_bytes;
-            std::memcpy(&value.bytes[offset], &code[pc + 1], num_push_bytes);
+            const auto available_push_bytes = std::min(num_push_bytes, code_size - pc - 1);
+            if (available_push_bytes != 0)
+                std::memcpy(&value.bytes[offset], &code[pc + 1], available_push_bytes);
             pc += num_push_bytes;
             stack.push(value);
             break;
@@ -418,5 +422,5 @@ ExampleVM::ExampleVM()
 
 extern "C" qrvmc_vm* qrvmc_create_example_vm()
 {
-    return new ExampleVM;
+    return new (std::nothrow) ExampleVM;
 }

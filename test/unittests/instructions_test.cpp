@@ -12,6 +12,8 @@ inline bool operator==(const qrvmc_instruction_metrics& a,
            a.stack_height_change == b.stack_height_change;
 }
 
+static_assert(QRVMC_ZOND == 0, "The first QRVMC revision must be the zero value.");
+
 TEST(instructions, name_gas_cost_equivalence)
 {
     for (auto r = int{QRVMC_ZOND}; r <= QRVMC_MAX_REVISION; ++r)

@@ -22,7 +22,10 @@ int main(int argc, char* argv[])
     if (!vm)
         return QRVMC_LOADER_VM_CREATION_FAILURE;
     if (!qrvmc_is_abi_compatible(vm))
+    {
+        qrvmc_destroy(vm);
         return QRVMC_LOADER_ABI_VERSION_MISMATCH;
+    }
 #else
     const char* config_string = (argc > 1) ? argv[1] : "example-vm.so";
     enum qrvmc_loader_error_code error_code = QRVMC_LOADER_UNSPECIFIED_ERROR;
@@ -39,7 +42,7 @@ int main(int argc, char* argv[])
     const uint8_t code[] = "\x43\x60\x00\x55\x43\x60\x00\x52\x59\x60\x00\xf3";
     const size_t code_size = sizeof(code) - 1;
     const uint8_t input[] = "Hello World!";
-    const qrvmc_uint512be value = {{1, 0}};
+    qrvmc_uint512be value = {{0}};
     const qrvmc_address addr = {{0, 1, 2}};
     const int64_t gas = 200000;
     struct qrvmc_tx_context tx_context = {
@@ -49,6 +52,14 @@ int main(int argc, char* argv[])
     };
     const struct qrvmc_host_interface* host = example_host_get_interface();
     struct qrvmc_host_context* ctx = example_host_create_context(tx_context);
+    if (!ctx)
+    {
+        printf("Host context creation failure\n");
+        qrvmc_destroy(vm);
+        return QRVMC_OUT_OF_MEMORY;
+    }
+    value.bytes[63] = 1;
+
     struct qrvmc_message msg = {
         .kind = QRVMC_CALL,
         .sender = addr,

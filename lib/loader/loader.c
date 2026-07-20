@@ -113,11 +113,11 @@ qrvmc_create_fn qrvmc_load(const char* filename, enum qrvmc_loader_error_code* e
             set_error(QRVMC_LOADER_INVALID_ARGUMENT, "invalid argument: file name cannot be empty");
         goto exit;
     }
-    else if (length > PATH_MAX_LENGTH)
+    else if (length >= PATH_MAX_LENGTH)
     {
         ec = set_error(QRVMC_LOADER_INVALID_ARGUMENT,
                        "invalid argument: file name is too long (%d, maximum allowed length is %d)",
-                       (int)length, PATH_MAX_LENGTH);
+                       (int)length, PATH_MAX_LENGTH - 1);
         goto exit;
     }
 
@@ -144,7 +144,8 @@ qrvmc_create_fn qrvmc_load(const char* filename, enum qrvmc_loader_error_code* e
 #ifdef _WIN32
     // On Windows check also Windows classic path separator.
     const char* sep_pos_windows = strrchr(filename, '\\');
-    sep_pos = sep_pos_windows > sep_pos ? sep_pos_windows : sep_pos;
+    if (sep_pos_windows != NULL && (sep_pos == NULL || sep_pos_windows > sep_pos))
+        sep_pos = sep_pos_windows;
 #endif
     const char* name_pos = sep_pos ? sep_pos + 1 : filename;
 
@@ -258,12 +259,19 @@ struct qrvmc_vm* qrvmc_load_and_configure(const char* config,
     enum qrvmc_loader_error_code ec = QRVMC_LOADER_SUCCESS;
     struct qrvmc_vm* vm = NULL;
 
+    if (!config)
+    {
+        ec = set_error(QRVMC_LOADER_INVALID_ARGUMENT,
+                       "invalid argument: configuration cannot be null");
+        goto exit;
+    }
+
     char config_copy_buffer[PATH_MAX_LENGTH];
     if (strcpy_sx(config_copy_buffer, sizeof(config_copy_buffer), config) != 0)
     {
         ec = set_error(QRVMC_LOADER_INVALID_ARGUMENT,
                        "invalid argument: configuration is too long (maximum allowed length is %d)",
-                       (int)sizeof(config_copy_buffer));
+                       (int)sizeof(config_copy_buffer) - 1);
         goto exit;
     }
 

@@ -14,6 +14,11 @@
 #include <qrvmc/mocked_host.hpp>
 #include <qrvmc/utils.h>
 
+#include <iterator>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
 // Include again to check if headers have proper include guards.
 #include <qrvmc/qrvmc.h>               //NOLINT(readability-duplicate-include)
 #include <qrvmc/qrvmc.hpp>             //NOLINT(readability-duplicate-include)
@@ -24,3 +29,32 @@
 #include <qrvmc/loader.h>             //NOLINT(readability-duplicate-include)
 #include <qrvmc/mocked_host.hpp>      //NOLINT(readability-duplicate-include)
 #include <qrvmc/utils.h>              //NOLINT(readability-duplicate-include)
+
+static_assert(!noexcept(qrvmc::hex(uint8_t{})));
+static_assert(!noexcept(qrvmc::from_hex("00", "00" + 2, static_cast<uint8_t*>(nullptr))));
+static_assert(!noexcept(qrvmc::from_spaced_hex("00")));
+
+#if __cplusplus >= 202002L
+namespace
+{
+bool is_positive(int x) noexcept
+{
+    return x > 0;
+}
+}  // namespace
+
+using filter_iter = qrvmc::filter_iterator<std::vector<int>::const_iterator, is_positive>;
+using mutable_filter_iter = qrvmc::filter_iterator<std::vector<int>::iterator, is_positive>;
+
+static_assert(std::input_iterator<filter_iter>);
+static_assert(std::input_iterator<mutable_filter_iter>);
+static_assert(std::is_same_v<typename std::iterator_traits<mutable_filter_iter>::pointer, void>);
+static_assert(std::is_same_v<typename std::iterator_traits<mutable_filter_iter>::reference,
+                             decltype(*std::declval<mutable_filter_iter&>())>);
+static_assert(!noexcept(filter_iter{std::declval<std::vector<int>::const_iterator>(),
+                                    std::declval<std::vector<int>::const_iterator>()}));
+static_assert(!noexcept(*std::declval<const filter_iter&>()));
+static_assert(!noexcept(++std::declval<filter_iter&>()));
+static_assert(!noexcept(std::declval<filter_iter&>()++));
+static_assert(!noexcept(std::declval<const filter_iter&>() == std::declval<const filter_iter&>()));
+#endif

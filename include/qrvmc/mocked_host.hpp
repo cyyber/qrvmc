@@ -358,8 +358,13 @@ public:
 
         const auto n = std::min(buffer_size, code.size() - code_offset);
 
-        if (n > 0)
-            std::copy_n(&code[code_offset], n, buffer_data);
+        if (n == 0)
+            return 0;
+
+        if (buffer_data == nullptr)
+            return 0;
+
+        std::copy_n(&code[code_offset], n, buffer_data);
         return n;
     }
 
@@ -378,14 +383,23 @@ public:
         {
             recorded_calls.emplace_back(msg);
             auto& call_msg = recorded_calls.back();
-            if (call_msg.input_size > 0)
+            if (call_msg.input_data == nullptr)
+            {
+                call_msg.input_size = 0;
+            }
+            else if (call_msg.input_size > 0)
             {
                 m_recorded_calls_inputs.emplace_back(call_msg.input_data, call_msg.input_size);
                 const auto& input_copy = m_recorded_calls_inputs.back();
                 call_msg.input_data = input_copy.data();
             }
         }
-        return Result{call_result};
+        auto result = Result{call_result.status_code, call_result.gas_left, call_result.gas_refund,
+                             call_result.output_data, call_result.output_size};
+        const auto* src_storage = qrvmc_get_const_optional_storage(&call_result);
+        auto* dst_storage = qrvmc_get_optional_storage(&result.raw());
+        std::copy_n(src_storage->bytes, sizeof(src_storage->bytes), dst_storage->bytes);
+        return result;
     }
 
     /// Get transaction context (QRVMC host method).
@@ -405,7 +419,22 @@ public:
                   const bytes64 topics[],
                   size_t topics_count) noexcept override
     {
-        recorded_logs.push_back({addr, {data, data_size}, {topics, topics + topics_count}});
+        auto& log = recorded_logs.emplace_back();
+        log.creator = addr;
+
+        if (data_size != 0)
+        {
+            assert(data != nullptr);
+            if (data != nullptr)
+                log.data.assign(data, data + data_size);
+        }
+
+        if (topics_count != 0)
+        {
+            assert(topics != nullptr);
+            if (topics != nullptr)
+                log.topics.assign(topics, topics + topics_count);
+        }
     }
 
     /// Record an account access.
