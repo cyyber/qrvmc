@@ -156,6 +156,9 @@ TEST(hex, from_prefixed_hex_to_custom_type)
     EXPECT_FALSE(qrvmc::from_prefixed_hex<X>("fx", "Q"));
     EXPECT_FALSE(qrvmc::from_prefixed_hex<X>("fQ0", "Q"));
     EXPECT_FALSE(qrvmc::from_prefixed_hex<X>("f1f2f3f4", "Q"));
+    EXPECT_FALSE(qrvmc::from_prefixed_hex<X>("Q0x", "Q"));
+    EXPECT_FALSE(qrvmc::from_prefixed_hex<X>("Q0x01", "Q"));
+    EXPECT_FALSE(qrvmc::from_prefixed_hex<X>("Q0x1234", "Q"));
     // The result type is too small for the input.
     EXPECT_FALSE(qrvmc::from_prefixed_hex<X>("Q0000000000", "Q"));
 }

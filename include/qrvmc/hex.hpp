@@ -117,6 +117,11 @@ constexpr std::optional<T> from_prefixed_hex(std::string_view s, std::string_vie
             s.remove_prefix(prefix.size());
     }
 
+    // The generic decoder accepts a leading "0x", but here the custom prefix already identifies
+    // the literal. Reject a second prefix before computing the left-padding offset.
+    if (s.size() >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+        return {};
+
     T r{};  // The T must have .bytes array. This may be lifted if std::bit_cast is available.
     constexpr auto num_out_bytes = std::size(r.bytes);
     const auto num_in_bytes = s.length() / 2;
