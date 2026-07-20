@@ -857,7 +857,7 @@ enum qrvmc_revision
      *
      * https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/shanghai.md
      */
-    QRVMC_ZOND = 1,
+    QRVMC_ZOND = 0,
 
     /** The maximum QRVM revision supported. */
     QRVMC_MAX_REVISION = QRVMC_ZOND,
