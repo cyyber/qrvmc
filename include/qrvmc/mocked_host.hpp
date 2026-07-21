@@ -75,6 +75,12 @@ struct MockedAccount
 class MockedHost : public Host
 {
 public:
+    MockedHost() = default;
+    MockedHost(const MockedHost&) = delete;
+    MockedHost& operator=(const MockedHost&) = delete;
+    MockedHost(MockedHost&&) noexcept = default;
+    MockedHost& operator=(MockedHost&&) noexcept = default;
+
     /// LOG record.
     struct log_record
     {
@@ -375,6 +381,7 @@ public:
 
         if (recorded_calls.empty())
         {
+            m_recorded_calls_inputs.clear();
             recorded_calls.reserve(max_recorded_calls);
             m_recorded_calls_inputs.reserve(max_recorded_calls);  // Iterators will not invalidate.
         }

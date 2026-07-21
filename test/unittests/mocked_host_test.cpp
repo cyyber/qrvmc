@@ -4,8 +4,14 @@
 
 #include <qrvmc/mocked_host.hpp>
 #include <gtest/gtest.h>
+#include <type_traits>
 
 using namespace qrvmc::literals;
+
+static_assert(!std::is_copy_constructible_v<qrvmc::MockedHost>);
+static_assert(!std::is_copy_assignable_v<qrvmc::MockedHost>);
+static_assert(std::is_move_constructible_v<qrvmc::MockedHost>);
+static_assert(std::is_move_assignable_v<qrvmc::MockedHost>);
 
 TEST(mocked_host, mocked_account)
 {
@@ -17,6 +23,44 @@ TEST(mocked_host, mocked_account)
     EXPECT_EQ(account.balance,
               0x0000000000000000000000000000000000000000000000000102030405060708_bytes64);
     EXPECT_EQ(account.nonce, -1);
+}
+
+TEST(mocked_host, recorded_calls_clear_resets_input_copies)
+{
+    qrvmc::MockedHost host;
+
+    const auto record_call = [&host](const qrvmc::bytes& input) {
+        qrvmc_message msg{};
+        msg.input_data = input.data();
+        msg.input_size = input.size();
+        host.call(msg);
+    };
+
+    constexpr auto priming_calls = static_cast<size_t>(qrvmc::MockedHost::max_recorded_calls - 1);
+    for (auto i = size_t{0}; i < priming_calls; ++i)
+    {
+        const qrvmc::bytes input{static_cast<uint8_t>(i)};
+        record_call(input);
+    }
+
+    host.recorded_calls.clear();
+
+    const qrvmc::bytes first_input{0xaa};
+    record_call(first_input);
+    ASSERT_EQ(host.recorded_calls.size(), size_t{1});
+    const auto* first_recorded_input = host.recorded_calls.front().input_data;
+
+    const qrvmc::bytes second_input{0xbb};
+    record_call(second_input);
+    ASSERT_EQ(host.recorded_calls.size(), size_t{2});
+
+    EXPECT_EQ(host.recorded_calls.front().input_data, first_recorded_input);
+    EXPECT_EQ(qrvmc::bytes(host.recorded_calls.front().input_data,
+                           host.recorded_calls.front().input_size),
+              first_input);
+    EXPECT_EQ(qrvmc::bytes(host.recorded_calls.back().input_data,
+                           host.recorded_calls.back().input_size),
+              second_input);
 }
 
 TEST(mocked_host, storage)
