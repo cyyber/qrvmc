@@ -40,6 +40,12 @@ add_qrvmc_tool_test(
 )
 
 add_qrvmc_tool_test(
+    invalid_revision
+    "--vm $<TARGET_FILE:qrvmc::example-vm> run 00 --rev 99"
+    "--rev: Value 99 not in range \\[0 - 0\\]"
+)
+
+add_qrvmc_tool_test(
     create_return_2
     "--vm $<TARGET_FILE:qrvmc::example-vm> run --create 6960026000526001603ff3600052600a6036f3"
     "Result: +success[\r\n]+Gas used: +6[\r\n]+Output: +02[\r\n]"
