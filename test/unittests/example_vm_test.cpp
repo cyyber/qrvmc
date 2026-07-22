@@ -4,6 +4,7 @@
 
 #include "../../examples/example_vm/example_vm.h"
 #include <qrvmc/hex.hpp>
+#include <qrvmc/instructions.h>
 #include <qrvmc/mocked_host.hpp>
 #include <qrvmc/qrvmc.hpp>
 #include <gtest/gtest.h>
@@ -53,6 +54,13 @@ protected:
         const auto code = qrvmc::from_hex(code_hex).value();
         const auto input = qrvmc::from_hex(input_hex).value();
 
+        return execute_in_example_vm(gas, code, input);
+    }
+
+    qrvmc::Result execute_in_example_vm(int64_t gas,
+                                        qrvmc::bytes_view code,
+                                        qrvmc::bytes_view input = {})
+    {
         msg.gas = gas;
         msg.input_data = input.data();
         msg.input_size = input.size();
@@ -147,6 +155,31 @@ TEST_F(example_vm, revert_out_of_memory)
     // Yul: revert(512, 513)
     const auto r = execute_in_example_vm(10, "610201610200fd");
     EXPECT_EQ(r.status_code, QRVMC_FAILURE);
+    EXPECT_EQ(r.gas_left, 0);
+    EXPECT_EQ(r, Output(""));
+}
+
+TEST_F(example_vm, stack_underflow)
+{
+    const auto r = execute_in_example_vm(1, "01");
+    EXPECT_EQ(r.status_code, QRVMC_STACK_UNDERFLOW);
+    EXPECT_EQ(r.gas_left, 0);
+    EXPECT_EQ(r, Output(""));
+}
+
+TEST_F(example_vm, stack_overflow)
+{
+    constexpr auto stack_limit = size_t{1024};
+    qrvmc::bytes code;
+    code.reserve((stack_limit + 1) * 2);
+    for (auto i = size_t{0}; i <= stack_limit; ++i)
+    {
+        code.push_back(static_cast<uint8_t>(OP_PUSH1));
+        code.push_back(0);
+    }
+
+    const auto r = execute_in_example_vm(static_cast<int64_t>(stack_limit + 1), code);
+    EXPECT_EQ(r.status_code, QRVMC_STACK_OVERFLOW);
     EXPECT_EQ(r.gas_left, 0);
     EXPECT_EQ(r, Output(""));
 }
