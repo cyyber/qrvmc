@@ -33,7 +33,7 @@ enum
     WARM_STORAGE_READ_COST = 100
 };
 
-static struct qrvmc_instruction_metrics zond_metrics[256] = {
+static const struct qrvmc_instruction_metrics zond_metrics[256] = {
     /*           STOP = 0x00 */ {ZERO, 0, 0},
     /*            ADD = 0x01 */ {VERYLOW, 2, -1},
     /*            MUL = 0x02 */ {LOW, 2, -1},

@@ -4,7 +4,7 @@
 
 #include <qrvmc/instructions.h>
 
-static const char* zond_names[256] = {
+static const char* const zond_names[256] = {
     /* 0x00 */ "STOP",
     /* 0x01 */ "ADD",
     /* 0x02 */ "MUL",
