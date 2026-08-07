@@ -251,6 +251,19 @@ TEST_F(example_vm, call_empty_output)
     EXPECT_EQ(host.recorded_calls[0].input_size, size_t{3});
 }
 
+TEST_F(example_vm, negative_gas)
+{
+    // Negative gas from a misbehaving host must fail cleanly, without the
+    // instruction-charge decrement overflowing for INT64_MIN.
+    const auto r = execute_in_example_vm(-1, "00");
+    EXPECT_EQ(r.status_code, QRVMC_OUT_OF_GAS);
+    EXPECT_EQ(r.gas_left, 0);
+
+    const auto r2 = execute_in_example_vm(std::numeric_limits<int64_t>::min(), "00");
+    EXPECT_EQ(r2.status_code, QRVMC_OUT_OF_GAS);
+    EXPECT_EQ(r2.gas_left, 0);
+}
+
 TEST_F(example_vm, static_mode_violations)
 {
     msg.flags = QRVMC_STATIC;
@@ -264,7 +277,7 @@ TEST_F(example_vm, static_mode_violations)
     EXPECT_EQ(r2.status_code, QRVMC_STATIC_MODE_VIOLATION);
     EXPECT_EQ(host.recorded_calls.size(), size_t{0});
 
-    // Stack validation precedes the static-mode check.
+    // With an empty stack the underflow is reported, not the static-mode violation.
     const auto r3 = execute_in_example_vm(10, "55");
     EXPECT_EQ(r3.status_code, QRVMC_STACK_UNDERFLOW);
 }
@@ -291,7 +304,7 @@ TEST_F(example_vm, call_depth_limit)
     EXPECT_EQ(r.status_code, QRVMC_CALL_DEPTH_EXCEEDED);
     EXPECT_EQ(host.recorded_calls.size(), size_t{0});
 
-    // Stack validation precedes the depth check.
+    // With an empty stack the underflow is reported, not the depth error.
     const auto r0 = execute_in_example_vm(10, "f1");
     EXPECT_EQ(r0.status_code, QRVMC_STACK_UNDERFLOW);
 

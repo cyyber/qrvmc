@@ -494,6 +494,10 @@ typedef bool (*qrvmc_account_exists_fn)(struct qrvmc_host_context* context,
  *
  * This callback function is used by a VM to query the given account storage entry.
  *
+ * A 32-byte storage key occupies the lower 32 bytes of the 64-byte @p key value
+ * (bytes of highest indices); the upper 32 bytes are zero. Hosts hashing into
+ * a 32-byte key space may safely ignore the upper 32 bytes.
+ *
  * @param context  The Host execution context.
  * @param address  The address of the account.
  * @param key      The index of the account's storage entry.
@@ -609,6 +613,8 @@ enum qrvmc_storage_status
  * The VM MUST make sure that the account exists. This requirement is only a formality because
  * VM implementations only modify storage of the account of the current execution context
  * (i.e. referenced by qrvmc_message::recipient).
+ *
+ * The @p key follows the same zero-extension convention as in ::qrvmc_get_storage_fn.
  *
  * @param context  The pointer to the Host execution context.
  * @param address  The address of the account.

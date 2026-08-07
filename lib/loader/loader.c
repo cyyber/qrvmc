@@ -46,6 +46,8 @@
 #define THREAD_LOCAL __declspec(thread)
 #elif defined(__GNUC__)
 #define THREAD_LOCAL __thread
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define THREAD_LOCAL _Thread_local
 #else
 // No known thread-local storage support: error state falls back to being shared
 // between threads and the loader must be used from a single thread only.

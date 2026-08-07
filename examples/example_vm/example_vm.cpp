@@ -196,6 +196,10 @@ qrvmc_result execute(qrvmc_vm* instance,
         std::puts("execution started\n");
 
     int64_t gas_left = msg->gas;
+    // Negative gas is a host contract violation; reject it up front, also because
+    // decrementing from INT64_MIN would overflow.
+    if (gas_left < 0)
+        return qrvmc_make_result(QRVMC_OUT_OF_GAS, 0, 0, nullptr, 0);
     Stack stack;
     Memory memory;
 
