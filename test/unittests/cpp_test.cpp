@@ -774,8 +774,11 @@ TEST(cpp, example_host_get_block_hash_range)
     EXPECT_EQ(get_block_hash(300, 43), qrvmc::bytes64{});
     EXPECT_EQ(get_block_hash(300, 300), qrvmc::bytes64{});
 
+    // Negative block numbers never exist, even when within the history window,
+    // and must not cause signed-overflow UB for extreme values.
+    EXPECT_EQ(get_block_hash(42, -1), qrvmc::bytes64{});
     constexpr auto int64_min = std::numeric_limits<int64_t>::min();
-    EXPECT_EQ(get_block_hash(int64_min + 10, int64_min), expected_hash);
+    EXPECT_EQ(get_block_hash(int64_min + 10, int64_min), qrvmc::bytes64{});
     EXPECT_EQ(get_block_hash(int64_min + 10, int64_min + 10), qrvmc::bytes64{});
 }
 

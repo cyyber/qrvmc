@@ -9,6 +9,7 @@
 #include <qrvmc/qrvmc.hpp>
 #include <gtest/gtest.h>
 #include <cstring>
+#include <limits>
 
 using namespace qrvmc::literals;
 
@@ -203,7 +204,8 @@ TEST_F(example_vm, call)
     host.call_result.output_size = expected_output.size();
     const auto r = execute_in_example_vm(100, "6003600360036003600360036003f1596000f3");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
-    EXPECT_EQ(r.gas_left, 89);
+    // 100 - 11 instructions - 3 gas granted to the call (the mocked host returns none of it).
+    EXPECT_EQ(r.gas_left, 86);
     EXPECT_EQ(r, Output("000000aabbcc"));
     ASSERT_EQ(host.recorded_calls.size(), size_t{1});
     EXPECT_EQ(host.recorded_calls[0].flags, uint32_t{0});
@@ -212,7 +214,29 @@ TEST_F(example_vm, call)
               0x0000000000000000000000000000000000000000000000000000000000000003_bytes64);
     EXPECT_EQ(host.recorded_calls[0].recipient,
               "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003"_address);
+    EXPECT_EQ(qrvmc::address{host.recorded_calls[0].sender}, qrvmc::address{msg.recipient});
+    EXPECT_EQ(qrvmc::address{host.recorded_calls[0].code_address},
+              qrvmc::address{host.recorded_calls[0].recipient});
     EXPECT_EQ(host.recorded_calls[0].input_size, size_t{3});
+}
+
+TEST_F(example_vm, call_refund_clamped)
+{
+    // pseudo-Yul: call(3, 3, 3, 3, 3, 3, 3) return(0, msize())
+    const auto code = "6003600360036003600360036003f1596000f3";
+
+    // A host returning more gas than granted must not mint gas for the parent
+    // (nor overflow the gas counter).
+    host.call_result.gas_left = std::numeric_limits<int64_t>::max();
+    const auto r = execute_in_example_vm(100, code);
+    EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
+    EXPECT_EQ(r.gas_left, 89);  // 100 - 11 instructions - 3 granted + 3 clamped refund.
+
+    // A host returning negative gas must not drive the parent's gas negative.
+    host.call_result.gas_left = -1000;
+    const auto r2 = execute_in_example_vm(100, code);
+    EXPECT_EQ(r2.status_code, QRVMC_SUCCESS);
+    EXPECT_EQ(r2.gas_left, 86);  // The negative refund clamps to zero.
 }
 
 TEST_F(example_vm, call_empty_output)
@@ -220,10 +244,63 @@ TEST_F(example_vm, call_empty_output)
     // pseudo-Yul: call(3, 3, 3, 3, 3, 3, 3) return(0, msize())
     const auto r = execute_in_example_vm(100, "6003600360036003600360036003f1596000f3");
     EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
-    EXPECT_EQ(r.gas_left, 89);
+    // 100 - 11 instructions - 3 gas granted to the call (the mocked host returns none of it).
+    EXPECT_EQ(r.gas_left, 86);
     EXPECT_EQ(r, Output("000000000000"));
     ASSERT_EQ(host.recorded_calls.size(), size_t{1});
     EXPECT_EQ(host.recorded_calls[0].input_size, size_t{3});
+}
+
+TEST_F(example_vm, static_mode_violations)
+{
+    msg.flags = QRVMC_STATIC;
+
+    // Yul: sstore(0, 1)
+    const auto r = execute_in_example_vm(10, "6001600055");
+    EXPECT_EQ(r.status_code, QRVMC_STATIC_MODE_VIOLATION);
+
+    // pseudo-Yul: call(3, 3, 3, 3, 3, 3, 3) -- a value transfer is forbidden in static mode.
+    const auto r2 = execute_in_example_vm(100, "6003600360036003600360036003f1");
+    EXPECT_EQ(r2.status_code, QRVMC_STATIC_MODE_VIOLATION);
+    EXPECT_EQ(host.recorded_calls.size(), size_t{0});
+
+    // Stack validation precedes the static-mode check.
+    const auto r3 = execute_in_example_vm(10, "55");
+    EXPECT_EQ(r3.status_code, QRVMC_STACK_UNDERFLOW);
+}
+
+TEST_F(example_vm, static_mode_call_without_value)
+{
+    // pseudo-Yul: call(3, 3, 0, 3, 3, 3, 3) return(0, msize()) -- a value-less call
+    // is allowed in static mode and the mode propagates to the child call.
+    msg.flags = QRVMC_STATIC;
+    const auto r = execute_in_example_vm(100, "6003600360036003600060036003f1596000f3");
+    EXPECT_EQ(r.status_code, QRVMC_SUCCESS);
+    ASSERT_EQ(host.recorded_calls.size(), size_t{1});
+    EXPECT_EQ(host.recorded_calls[0].flags, uint32_t{QRVMC_STATIC});
+}
+
+TEST_F(example_vm, call_depth_limit)
+{
+    // pseudo-Yul: call(3, 3, 3, 3, 3, 3, 3) return(0, msize())
+    const auto code = "6003600360036003600360036003f1596000f3";
+
+    // At the depth limit no call may be dispatched.
+    msg.depth = 1024;
+    const auto r = execute_in_example_vm(100, code);
+    EXPECT_EQ(r.status_code, QRVMC_CALL_DEPTH_EXCEEDED);
+    EXPECT_EQ(host.recorded_calls.size(), size_t{0});
+
+    // Stack validation precedes the depth check.
+    const auto r0 = execute_in_example_vm(10, "f1");
+    EXPECT_EQ(r0.status_code, QRVMC_STACK_UNDERFLOW);
+
+    // One level below the limit the call goes out with incremented depth.
+    msg.depth = 1023;
+    const auto r2 = execute_in_example_vm(100, code);
+    EXPECT_EQ(r2.status_code, QRVMC_SUCCESS);
+    ASSERT_EQ(host.recorded_calls.size(), size_t{1});
+    EXPECT_EQ(host.recorded_calls[0].depth, 1024);
 }
 
 TEST_F(example_vm, calldataload_full)

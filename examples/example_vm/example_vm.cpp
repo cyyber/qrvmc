@@ -171,6 +171,15 @@ inline qrvmc_address to_address(qrvmc_uint512be value)
     return address;
 }
 
+/// Checks if a 512-bit value is zero.
+inline bool is_zero(qrvmc_uint512be value)
+{
+    for (const auto b : value.bytes)
+        if (b != 0)
+            return false;
+    return true;
+}
+
 
 /// The example implementation of the qrvmc_vm::execute() method.
 qrvmc_result execute(qrvmc_vm* instance,
@@ -290,6 +299,9 @@ qrvmc_result execute(qrvmc_vm* instance,
             if (!stack.pop(index) || !stack.pop(value))
                 return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
 
+            if ((msg->flags & QRVMC_STATIC) != 0)
+                return qrvmc_make_result(QRVMC_STATIC_MODE_VIOLATION, 0, 0, nullptr, 0);
+
             host->set_storage(context, &msg->recipient, &index, &value);
             break;
         }
@@ -398,8 +410,23 @@ qrvmc_result execute(qrvmc_vm* instance,
             if (!stack.pop(gas) || !stack.pop(recipient) || !stack.pop(call_value))
                 return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
 
-            call_msg.gas = to_uint32(gas);
+            // The depth limit guarantees no message ever exceeds depth 1024.
+            if (msg->depth >= 1024)
+                return qrvmc_make_result(QRVMC_CALL_DEPTH_EXCEEDED, 0, 0, nullptr, 0);
+
+            // In static mode only value-less calls are allowed
+            // and the mode propagates to the child call.
+            if ((msg->flags & QRVMC_STATIC) != 0 && !is_zero(call_value))
+                return qrvmc_make_result(QRVMC_STATIC_MODE_VIOLATION, 0, 0, nullptr, 0);
+
+            // A real QRVM would charge upfront costs and apply the 63/64 rule here;
+            // this VM simply caps the child's allowance at the parent's remaining gas.
+            call_msg.gas = std::min<int64_t>(to_uint32(gas), gas_left);
+            call_msg.flags = msg->flags;
+            call_msg.depth = msg->depth + 1;
+            call_msg.sender = msg->recipient;
             call_msg.recipient = to_address(recipient);
+            call_msg.code_address = call_msg.recipient;
             call_msg.value = call_value;
 
             qrvmc_uint512be call_input_offset_value;
@@ -424,7 +451,11 @@ qrvmc_result execute(qrvmc_vm* instance,
             if (call_msg.input_data == nullptr || call_output_ptr == nullptr)
                 return qrvmc_make_result(QRVMC_FAILURE, 0, 0, nullptr, 0);
 
+            gas_left -= call_msg.gas;
             qrvmc_result call_result = host->call(context, &call_msg);
+            // A conforming host returns 0 <= gas_left <= msg.gas; clamp so that
+            // a misbehaving host can neither mint gas nor drive gas_left negative.
+            gas_left += std::clamp(call_result.gas_left, int64_t{0}, call_msg.gas);
 
             qrvmc_uint512be success = to_uint512(call_result.status_code == QRVMC_SUCCESS ? 1 : 0);
             if (!stack.push(success))

@@ -27,9 +27,12 @@ static int qrvmc_test_load_library(const char* filename)
     return 0;
 }
 
+int qrvmc_test_free_library_call_count = 0;
+
 static void qrvmc_test_free_library(int handle)
 {
     (void)handle;
+    ++qrvmc_test_free_library_call_count;
 }
 
 static qrvmc_create_fn qrvmc_test_get_symbol_address(int handle, const char* symbol)

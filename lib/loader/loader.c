@@ -42,6 +42,16 @@
 #define ATTR_FORMAT(...)
 #endif
 
+#if defined(_MSC_VER)
+#define THREAD_LOCAL __declspec(thread)
+#elif defined(__GNUC__)
+#define THREAD_LOCAL __thread
+#else
+// No known thread-local storage support: error state falls back to being shared
+// between threads and the loader must be used from a single thread only.
+#define THREAD_LOCAL
+#endif
+
 /*
  * Limited variant of strcpy_s().
  */
@@ -72,11 +82,12 @@ enum
     LAST_ERROR_MSG_BUFFER_SIZE = 511
 };
 
-static const char* last_error_msg = NULL;
+static THREAD_LOCAL const char* last_error_msg = NULL;
 
-// Buffer for formatted error messages.
-// It has one null byte extra to avoid buffer read overflow during concurrent access.
-static char last_error_msg_buffer[LAST_ERROR_MSG_BUFFER_SIZE + 1];
+// Buffer for formatted error messages. The error state is thread-local, so each
+// thread observes the errors of its own loader calls only. The buffer has one
+// null byte extra to avoid read overflow in the non-thread-local fallback.
+static THREAD_LOCAL char last_error_msg_buffer[LAST_ERROR_MSG_BUFFER_SIZE + 1];
 
 ATTR_FORMAT(printf, 2, 3)
 static enum qrvmc_loader_error_code set_error(enum qrvmc_loader_error_code error_code,
@@ -94,7 +105,11 @@ static enum qrvmc_loader_error_code set_error(enum qrvmc_loader_error_code error
 }
 
 
-qrvmc_create_fn qrvmc_load(const char* filename, enum qrvmc_loader_error_code* error_code)
+/// Implementation of qrvmc_load() that can also pass the DLL handle to the caller
+/// (via optional @p handle_out) so that error paths creating the VM can unload the DLL.
+static qrvmc_create_fn load_internal(const char* filename,
+                                     enum qrvmc_loader_error_code* error_code,
+                                     DLL_HANDLE* handle_out)
 {
     last_error_msg = NULL;  // Reset last error.
     enum qrvmc_loader_error_code ec = QRVMC_LOADER_SUCCESS;
@@ -180,11 +195,18 @@ qrvmc_create_fn qrvmc_load(const char* filename, enum qrvmc_loader_error_code* e
         ec = set_error(QRVMC_LOADER_SYMBOL_NOT_FOUND, "QRVMC create function not found in %s",
                        filename);
     }
+    else if (handle_out)
+        *handle_out = handle;
 
 exit:
     if (error_code)
         *error_code = ec;
     return create_fn;
+}
+
+qrvmc_create_fn qrvmc_load(const char* filename, enum qrvmc_loader_error_code* error_code)
+{
+    return load_internal(filename, error_code, NULL);
 }
 
 const char* qrvmc_last_error_msg(void)
@@ -194,11 +216,17 @@ const char* qrvmc_last_error_msg(void)
     return m;
 }
 
-struct qrvmc_vm* qrvmc_load_and_create(const char* filename,
-                                       enum qrvmc_loader_error_code* error_code)
+/// Implementation of qrvmc_load_and_create() that can also pass the DLL handle
+/// to the caller (via optional @p handle_out). On its own failure paths the DLL
+/// is unloaded; on success the handle stays open for the lifetime of the VM.
+static struct qrvmc_vm* load_and_create_internal(const char* filename,
+                                                 enum qrvmc_loader_error_code* error_code,
+                                                 DLL_HANDLE* handle_out)
 {
+    DLL_HANDLE handle = 0;
+
     // First load the DLL. This also resets the last_error_msg;
-    qrvmc_create_fn create_fn = qrvmc_load(filename, error_code);
+    qrvmc_create_fn create_fn = load_internal(filename, error_code, &handle);
 
     if (!create_fn)
         return NULL;
@@ -210,6 +238,7 @@ struct qrvmc_vm* qrvmc_load_and_create(const char* filename,
     {
         ec = set_error(QRVMC_LOADER_VM_CREATION_FAILURE, "creating QRVMC VM of %s has failed",
                        filename);
+        DLL_CLOSE(handle);
         goto exit;
     }
 
@@ -220,14 +249,24 @@ struct qrvmc_vm* qrvmc_load_and_create(const char* filename,
                        vm->abi_version, filename, QRVMC_ABI_VERSION);
         qrvmc_destroy(vm);
         vm = NULL;
+        DLL_CLOSE(handle);
         goto exit;
     }
+
+    if (handle_out)
+        *handle_out = handle;
 
 exit:
     if (error_code)
         *error_code = ec;
 
     return vm;
+}
+
+struct qrvmc_vm* qrvmc_load_and_create(const char* filename,
+                                       enum qrvmc_loader_error_code* error_code)
+{
+    return load_and_create_internal(filename, error_code, NULL);
 }
 
 /// Gets the token delimited by @p delim character of the string pointed by the @p str_ptr.
@@ -258,6 +297,7 @@ struct qrvmc_vm* qrvmc_load_and_configure(const char* config,
 {
     enum qrvmc_loader_error_code ec = QRVMC_LOADER_SUCCESS;
     struct qrvmc_vm* vm = NULL;
+    DLL_HANDLE handle = 0;
 
     if (!config)
     {
@@ -278,7 +318,7 @@ struct qrvmc_vm* qrvmc_load_and_configure(const char* config,
     char* options = config_copy_buffer;
     const char* path = get_token(&options, ',');
 
-    vm = qrvmc_load_and_create(path, error_code);
+    vm = load_and_create_internal(path, error_code, &handle);
     if (!vm)
         return NULL;
 
@@ -328,6 +368,10 @@ exit:
         return vm;
 
     if (vm)
+    {
+        // A non-NULL vm implies the DLL was successfully loaded and handle is valid.
         qrvmc_destroy(vm);
+        DLL_CLOSE(handle);
+    }
     return NULL;
 }

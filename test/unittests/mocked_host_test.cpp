@@ -63,6 +63,21 @@ TEST(mocked_host, recorded_calls_clear_resets_input_copies)
               second_input);
 }
 
+TEST(mocked_host, recorded_call_empty_input_keeps_no_pointer)
+{
+    qrvmc::MockedHost host;
+
+    const qrvmc::bytes buffer{0xaa};
+    qrvmc_message msg{};
+    msg.input_data = buffer.data();  // Non-null pointer with zero size is valid per the ABI.
+    msg.input_size = 0;
+    host.call(msg);
+
+    ASSERT_EQ(host.recorded_calls.size(), size_t{1});
+    EXPECT_EQ(host.recorded_calls.front().input_data, nullptr);
+    EXPECT_EQ(host.recorded_calls.front().input_size, size_t{0});
+}
+
 TEST(mocked_host, storage)
 {
     const auto addr1 = qrvmc::address{};

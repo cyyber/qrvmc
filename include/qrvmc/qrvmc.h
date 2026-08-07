@@ -226,6 +226,10 @@ typedef struct qrvmc_tx_context (*qrvmc_get_tx_context_fn)(struct qrvmc_host_con
  * If the information about the requested block is not available, then this is signalled by
  * returning null bytes.
  *
+ * A 32-byte block hash occupies the lower 32 bytes of the returned value
+ * (bytes of highest indices); the upper 32 bytes are zero, following the same
+ * zero-extension convention as for storage keys.
+ *
  * @param context  The pointer to the Host execution context.
  * @param number   The block number.
  * @return         The block hash or null bytes
@@ -648,6 +652,10 @@ typedef size_t (*qrvmc_get_code_size_fn)(struct qrvmc_host_context* context,
  * This callback function is used by a VM to get the keccak256 hash of the code stored
  * in the account at the given address. For existing accounts not having a code, this
  * function returns keccak256 hash of empty data.
+ *
+ * The 32-byte keccak256 hash occupies the lower 32 bytes of the returned value
+ * (bytes of highest indices); the upper 32 bytes are zero, following the same
+ * zero-extension convention as for storage keys.
  *
  * @param context  The pointer to the Host execution context.
  * @param address  The address of the account.

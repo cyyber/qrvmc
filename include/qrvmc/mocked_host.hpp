@@ -390,11 +390,14 @@ public:
         {
             recorded_calls.emplace_back(msg);
             auto& call_msg = recorded_calls.back();
-            if (call_msg.input_data == nullptr)
+            if (call_msg.input_data == nullptr || call_msg.input_size == 0)
             {
+                // Normalize empty input so that no pointer into the caller's
+                // transient buffer is retained.
+                call_msg.input_data = nullptr;
                 call_msg.input_size = 0;
             }
-            else if (call_msg.input_size > 0)
+            else
             {
                 m_recorded_calls_inputs.emplace_back(call_msg.input_data, call_msg.input_size);
                 const auto& input_copy = m_recorded_calls_inputs.back();

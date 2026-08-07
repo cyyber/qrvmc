@@ -163,7 +163,8 @@ struct qrvmc_vm* qrvmc_load_and_configure(const char* config,
  * In case of error code other than success returned, this function MAY return the error message.
  * Calling this function "consumes" the error message and the function will return NULL
  * from subsequent invocations.
- * This function is not thread-safe.
+ * The error state is thread-local: this function returns the message of the most recent
+ * error produced by a loading function called on the same thread.
  *
  * @return Error message or NULL if no additional information is available.
  *         The returned pointer MUST NOT be freed by the caller.
