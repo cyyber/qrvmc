@@ -4,6 +4,8 @@
 
 add_library(example-precompiles-vm SHARED example_precompiles_vm.cpp example_precompiles_vm.h)
 add_library(qrvmc::example-precompiles-vm ALIAS example-precompiles-vm)
+# No qrvmc- prefix in OUTPUT_NAME: the loader derives the create-function symbol
+# from the filename, so the name must match qrvmc_create_example_precompiles_vm().
 target_compile_features(example-precompiles-vm PRIVATE cxx_std_11)
 target_link_libraries(example-precompiles-vm PRIVATE qrvmc::qrvmc)
 
