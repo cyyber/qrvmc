@@ -105,12 +105,12 @@ jobs:
           name: "Run codespell"
           command: |
             codespell --quiet-level=4 --ignore-words=./.codespell-whitelist --skip=.git
-      #- run:
-      #    name: "Check bumpversion"
-      #    command: |
-      #      bumpversion --dry-run --verbose major
-      #      bumpversion --dry-run --verbose minor
-      #      bumpversion --dry-run --verbose patch
+      - run:
+          name: "Check bumpversion"
+          command: |
+            bumpversion --dry-run --verbose major
+            bumpversion --dry-run --verbose minor
+            bumpversion --dry-run --verbose patch
       - install_doxygen
       - run:
           name: "Test documentation"
