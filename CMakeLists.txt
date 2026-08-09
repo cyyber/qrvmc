@@ -32,9 +32,11 @@ option(HUNTER_ENABLED "Enable Hunter package manager support" ${QRVMC_TOOLS})
 if(HUNTER_ENABLED)
     set(HUNTER_CONFIGURATION_TYPES Release CACHE STRING "Build type of Hunter packages")
     option(HUNTER_USE_CACHE_SERVERS "Use default Hunter cache servers" NO)
-    include(HunterGate)
-    include(Hunter/init)
 endif()
+# HunterGate itself handles the HUNTER_ENABLED=OFF case by providing a no-op
+# hunter_add_package(), letting find_package() fall back to system packages.
+include(HunterGate)
+include(Hunter/init)
 
 cable_set_build_type(DEFAULT Release CONFIGURATION_TYPES Debug Release)
 

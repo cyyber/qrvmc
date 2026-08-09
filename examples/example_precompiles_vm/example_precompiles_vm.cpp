@@ -83,11 +83,11 @@ qrvmc_result execute(qrvmc_vm* /*vm*/,
     const auto id = (addr.bytes[prefix_size] << 8) | addr.bytes[prefix_size + 1];
     switch (id)
     {
-    case 0x0001:  // DEPOSITROOT
-    case 0x0002:  // SHA256
     case 0x0004:  // Identity
         return execute_identity(msg);
 
+    case 0x0001:  // DEPOSITROOT
+    case 0x0002:  // SHA256
     case 0x0005:  // EXPMOD
         return not_implemented();
 

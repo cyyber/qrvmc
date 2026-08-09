@@ -156,7 +156,14 @@ constexpr std::optional<T> from_hex(std::string_view s) noexcept
 {
     // Omit the optional 0x prefix.
     if (s.size() >= 2 && s[0] == '0' && s[1] == 'x')
+    {
         s.remove_prefix(2);
+        // The generic decoder would skip a second "0x" as a prefix, but the
+        // left-padding offset below is computed from the string length and
+        // would still count those two characters. Reject it instead.
+        if (s.size() >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+            return {};
+    }
 
     T r{};  // The T must have .bytes array. This may be lifted if std::bit_cast is available.
     constexpr auto num_out_bytes = std::size(r.bytes);

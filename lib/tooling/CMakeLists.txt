@@ -4,6 +4,7 @@
 
 add_library(tooling STATIC)
 add_library(qrvmc::tooling ALIAS tooling)
+set_target_properties(tooling PROPERTIES OUTPUT_NAME qrvmc-tooling)
 target_compile_features(tooling PUBLIC cxx_std_17)
 target_link_libraries(tooling PUBLIC qrvmc::qrvmc_cpp qrvmc::mocked_host)
 

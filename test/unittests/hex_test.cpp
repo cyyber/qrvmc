@@ -124,6 +124,11 @@ TEST(hex, from_hex_to_custom_type)
     EXPECT_FALSE(qrvmc::from_hex<X>("fx"));
     EXPECT_FALSE(qrvmc::from_hex<X>("fx00"));
 
+    // A doubled 0x prefix must be rejected, not decoded with a shifted offset.
+    EXPECT_FALSE(qrvmc::from_hex<X>("0x0x12"));
+    EXPECT_FALSE(qrvmc::from_hex<X>("0x0X12"));
+    EXPECT_FALSE(qrvmc::from_hex<X>("0x0x"));
+
     // The result type is too small for the input.
     EXPECT_FALSE(qrvmc::from_hex<X>("0000000000"));
     EXPECT_FALSE(qrvmc::from_hex<X>("0x0000000000"));

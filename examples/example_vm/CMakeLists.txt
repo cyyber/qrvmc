@@ -4,12 +4,14 @@
 
 add_library(example-vm SHARED example_vm.cpp example_vm.h)
 add_library(qrvmc::example-vm ALIAS example-vm)
-target_compile_features(example-vm PRIVATE cxx_std_11)
+# No qrvmc- prefix in OUTPUT_NAME: the loader derives the create-function symbol
+# from the filename, so libexample-vm.so must match qrvmc_create_example_vm().
+target_compile_features(example-vm PRIVATE cxx_std_17)
 target_link_libraries(example-vm PRIVATE qrvmc::qrvmc)
 
 add_library(example-vm-static STATIC example_vm.cpp example_vm.h)
 add_library(qrvmc::example-vm-static ALIAS example-vm-static)
-target_compile_features(example-vm-static PRIVATE cxx_std_11)
+target_compile_features(example-vm-static PRIVATE cxx_std_17)
 target_link_libraries(example-vm-static PRIVATE qrvmc::qrvmc)
 
 set_source_files_properties(example_vm.cpp PROPERTIES

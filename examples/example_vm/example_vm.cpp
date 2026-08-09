@@ -5,9 +5,8 @@
 /// @file
 /// Example implementation of the QRVMC VM interface.
 ///
-/// This VM implements a subset of QRVM instructions in simplistic, incorrect and unsafe way:
-/// - memory bounds are not checked,
-/// - stack bounds are not checked,
+/// This VM implements a subset of QRVM instructions in simplistic and incomplete way:
+/// - memory is limited to a fixed-size buffer,
 /// - most of the operations are done with 32-bit precision (instead of QRVM 512-bit precision).
 /// Yet, it is capable of coping with some example QRVM bytecode inputs, which is very useful
 /// in integration testing. The implementation is done in simple C++ for readability and uses
@@ -79,10 +78,25 @@ struct Stack
     qrvmc_uint512be* pointer = items;  ///< The pointer to the currently first empty stack slot.
 
     /// Pops an item from the top of the stack.
-    qrvmc_uint512be pop() { return *--pointer; }
+    bool pop(qrvmc_uint512be& value) noexcept
+    {
+        if (pointer == items)
+            return false;
+
+        value = *--pointer;
+        return true;
+    }
 
     /// Pushes an item to the top of the stack.
-    void push(qrvmc_uint512be value) { *pointer++ = value; }
+    bool push(const qrvmc_uint512be& value) noexcept
+    {
+        constexpr auto stack_limit = sizeof(items) / sizeof(items[0]);
+        if (pointer == items + stack_limit)
+            return false;
+
+        *pointer++ = value;
+        return true;
+    }
 };
 
 /// The Example VM memory representation.
@@ -157,6 +171,15 @@ inline qrvmc_address to_address(qrvmc_uint512be value)
     return address;
 }
 
+/// Checks if a 512-bit value is zero.
+inline bool is_zero(qrvmc_uint512be value)
+{
+    for (const auto b : value.bytes)
+        if (b != 0)
+            return false;
+    return true;
+}
+
 
 /// The example implementation of the qrvmc_vm::execute() method.
 qrvmc_result execute(qrvmc_vm* instance,
@@ -173,6 +196,10 @@ qrvmc_result execute(qrvmc_vm* instance,
         std::puts("execution started\n");
 
     int64_t gas_left = msg->gas;
+    // Negative gas is a host contract violation; reject it up front, also because
+    // decrementing from INT64_MIN would overflow.
+    if (gas_left < 0)
+        return qrvmc_make_result(QRVMC_OUT_OF_GAS, 0, 0, nullptr, 0);
     Stack stack;
     Memory memory;
 
@@ -193,23 +220,35 @@ qrvmc_result execute(qrvmc_vm* instance,
 
         case OP_ADD:
         {
-            uint32_t a = to_uint32(stack.pop());
-            uint32_t b = to_uint32(stack.pop());
+            qrvmc_uint512be a_value;
+            qrvmc_uint512be b_value;
+            if (!stack.pop(a_value) || !stack.pop(b_value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
+            uint32_t a = to_uint32(a_value);
+            uint32_t b = to_uint32(b_value);
             uint32_t sum = a + b;
-            stack.push(to_uint512(sum));
+            auto value = to_uint512(sum);
+            if (!stack.push(value))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
             break;
         }
 
         case OP_ADDRESS:
         {
             qrvmc_uint512be value = to_uint512(msg->recipient);
-            stack.push(value);
+            if (!stack.push(value))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
             break;
         }
 
         case OP_CALLDATALOAD:
         {
-            uint32_t offset = to_uint32(stack.pop());
+            qrvmc_uint512be offset_value;
+            if (!stack.pop(offset_value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
+            uint32_t offset = to_uint32(offset_value);
             qrvmc_uint512be value = {};
 
             if (offset < msg->input_size)
@@ -218,7 +257,8 @@ qrvmc_result execute(qrvmc_vm* instance,
                 std::memcpy(value.bytes, &msg->input_data[offset], copy_size);
             }
 
-            stack.push(value);
+            if (!stack.push(value))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
             break;
         }
 
@@ -226,14 +266,19 @@ qrvmc_result execute(qrvmc_vm* instance,
         {
             qrvmc_uint512be value =
                 to_uint512(static_cast<uint32_t>(host->get_tx_context(context).block_number));
-            stack.push(value);
+            if (!stack.push(value))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
             break;
         }
 
         case OP_MSTORE:
         {
-            uint32_t index = to_uint32(stack.pop());
-            qrvmc_uint512be value = stack.pop();
+            qrvmc_uint512be index_value;
+            qrvmc_uint512be value;
+            if (!stack.pop(index_value) || !stack.pop(value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
+            uint32_t index = to_uint32(index_value);
             if (!memory.store(index, value.bytes, sizeof(value)))
                 return qrvmc_make_result(QRVMC_FAILURE, 0, 0, nullptr, 0);
             break;
@@ -241,16 +286,26 @@ qrvmc_result execute(qrvmc_vm* instance,
 
         case OP_SLOAD:
         {
-            qrvmc_uint512be index = stack.pop();
+            qrvmc_uint512be index;
+            if (!stack.pop(index))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
             qrvmc_uint512be value = host->get_storage(context, &msg->recipient, &index);
-            stack.push(value);
+            if (!stack.push(value))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
             break;
         }
 
         case OP_SSTORE:
         {
-            qrvmc_uint512be index = stack.pop();
-            qrvmc_uint512be value = stack.pop();
+            qrvmc_uint512be index;
+            qrvmc_uint512be value;
+            if (!stack.pop(index) || !stack.pop(value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
+            if ((msg->flags & QRVMC_STATIC) != 0)
+                return qrvmc_make_result(QRVMC_STATIC_MODE_VIOLATION, 0, 0, nullptr, 0);
+
             host->set_storage(context, &msg->recipient, &index, &value);
             break;
         }
@@ -258,7 +313,8 @@ qrvmc_result execute(qrvmc_vm* instance,
         case OP_MSIZE:
         {
             qrvmc_uint512be value = to_uint512(memory.size);
-            stack.push(value);
+            if (!stack.push(value))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
             break;
         }
 
@@ -334,41 +390,80 @@ qrvmc_result execute(qrvmc_vm* instance,
             if (available_push_bytes != 0)
                 std::memcpy(&value.bytes[offset], &code[pc + 1], available_push_bytes);
             pc += num_push_bytes;
-            stack.push(value);
+            if (!stack.push(value))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
             break;
         }
 
         case OP_DUP1:
         {
-            qrvmc_uint512be value = stack.pop();
-            stack.push(value);
-            stack.push(value);
+            qrvmc_uint512be value;
+            if (!stack.pop(value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+            if (!stack.push(value) || !stack.push(value))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
             break;
         }
 
         case OP_CALL:
         {
             qrvmc_message call_msg = {};
-            call_msg.gas = to_uint32(stack.pop());
-            call_msg.recipient = to_address(stack.pop());
-            call_msg.value = stack.pop();
+            qrvmc_uint512be gas;
+            qrvmc_uint512be recipient;
+            qrvmc_uint512be call_value;
+            if (!stack.pop(gas) || !stack.pop(recipient) || !stack.pop(call_value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
 
-            uint32_t call_input_offset = to_uint32(stack.pop());
-            uint32_t call_input_size = to_uint32(stack.pop());
+            // The depth limit guarantees no message ever exceeds depth 1024.
+            if (msg->depth >= 1024)
+                return qrvmc_make_result(QRVMC_CALL_DEPTH_EXCEEDED, 0, 0, nullptr, 0);
+
+            // In static mode only value-less calls are allowed
+            // and the mode propagates to the child call.
+            if ((msg->flags & QRVMC_STATIC) != 0 && !is_zero(call_value))
+                return qrvmc_make_result(QRVMC_STATIC_MODE_VIOLATION, 0, 0, nullptr, 0);
+
+            // A real QRVM would charge upfront costs and apply the 63/64 rule here;
+            // this VM simply caps the child's allowance at the parent's remaining gas.
+            call_msg.gas = std::min<int64_t>(to_uint32(gas), gas_left);
+            call_msg.flags = msg->flags;
+            call_msg.depth = msg->depth + 1;
+            call_msg.sender = msg->recipient;
+            call_msg.recipient = to_address(recipient);
+            call_msg.code_address = call_msg.recipient;
+            call_msg.value = call_value;
+
+            qrvmc_uint512be call_input_offset_value;
+            qrvmc_uint512be call_input_size_value;
+            if (!stack.pop(call_input_offset_value) || !stack.pop(call_input_size_value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
+            uint32_t call_input_offset = to_uint32(call_input_offset_value);
+            uint32_t call_input_size = to_uint32(call_input_size_value);
             call_msg.input_data = memory.expand(call_input_offset, call_input_size);
             call_msg.input_size = call_input_size;
 
-            uint32_t call_output_offset = to_uint32(stack.pop());
-            uint32_t call_output_size = to_uint32(stack.pop());
+            qrvmc_uint512be call_output_offset_value;
+            qrvmc_uint512be call_output_size_value;
+            if (!stack.pop(call_output_offset_value) || !stack.pop(call_output_size_value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
+            uint32_t call_output_offset = to_uint32(call_output_offset_value);
+            uint32_t call_output_size = to_uint32(call_output_size_value);
             uint8_t* call_output_ptr = memory.expand(call_output_offset, call_output_size);
 
             if (call_msg.input_data == nullptr || call_output_ptr == nullptr)
                 return qrvmc_make_result(QRVMC_FAILURE, 0, 0, nullptr, 0);
 
+            gas_left -= call_msg.gas;
             qrvmc_result call_result = host->call(context, &call_msg);
+            // A conforming host returns 0 <= gas_left <= msg.gas; clamp so that
+            // a misbehaving host can neither mint gas nor drive gas_left negative.
+            gas_left += std::clamp(call_result.gas_left, int64_t{0}, call_msg.gas);
 
-            qrvmc_uint512be value = to_uint512(call_result.status_code == QRVMC_SUCCESS ? 1 : 0);
-            stack.push(value);
+            qrvmc_uint512be success = to_uint512(call_result.status_code == QRVMC_SUCCESS ? 1 : 0);
+            if (!stack.push(success))
+                return qrvmc_make_result(QRVMC_STACK_OVERFLOW, 0, 0, nullptr, 0);
 
             if (call_output_size > call_result.output_size)
                 call_output_size = static_cast<uint32_t>(call_result.output_size);
@@ -381,8 +476,13 @@ qrvmc_result execute(qrvmc_vm* instance,
 
         case OP_RETURN:
         {
-            uint32_t output_offset = to_uint32(stack.pop());
-            uint32_t output_size = to_uint32(stack.pop());
+            qrvmc_uint512be output_offset_value;
+            qrvmc_uint512be output_size_value;
+            if (!stack.pop(output_offset_value) || !stack.pop(output_size_value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
+            uint32_t output_offset = to_uint32(output_offset_value);
+            uint32_t output_size = to_uint32(output_size_value);
             uint8_t* output_ptr = memory.expand(output_offset, output_size);
             if (output_ptr == nullptr)
                 return qrvmc_make_result(QRVMC_FAILURE, 0, 0, nullptr, 0);
@@ -392,8 +492,13 @@ qrvmc_result execute(qrvmc_vm* instance,
 
         case OP_REVERT:
         {
-            uint32_t output_offset = to_uint32(stack.pop());
-            uint32_t output_size = to_uint32(stack.pop());
+            qrvmc_uint512be output_offset_value;
+            qrvmc_uint512be output_size_value;
+            if (!stack.pop(output_offset_value) || !stack.pop(output_size_value))
+                return qrvmc_make_result(QRVMC_STACK_UNDERFLOW, 0, 0, nullptr, 0);
+
+            uint32_t output_offset = to_uint32(output_offset_value);
+            uint32_t output_size = to_uint32(output_size_value);
             uint8_t* output_ptr = memory.expand(output_offset, output_size);
             if (output_ptr == nullptr)
                 return qrvmc_make_result(QRVMC_FAILURE, 0, 0, nullptr, 0);

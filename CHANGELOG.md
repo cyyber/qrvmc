@@ -39,7 +39,7 @@ incompatible with hosts built against this release and vice versa.
 - `QRVMC_ABI_VERSION` check must match exactly between host and VM;
   dynamic-loader callers should reject mismatches on load.
 
-[2.0.0]: https://github.com/adamtka42/qrvmc/compare/64-byte-word
+[2.0.0]: https://github.com/theQRL/qrvmc/releases/tag/v2.0.0
 
 [Keep a Changelog]: https://keepachangelog.com
 [Semantic Versioning]: https://semver.org

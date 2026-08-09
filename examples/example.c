@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
         .recipient = addr,
         .value = value,
         .input_data = input,
-        .input_size = sizeof(input),
+        .input_size = sizeof(input) - 1,  // Do not pass the string's NUL terminator.
         .gas = gas,
         .depth = 0,
     };

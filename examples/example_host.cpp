@@ -145,7 +145,7 @@ public:
         const int64_t current_block_number = get_tx_context().block_number;
         constexpr auto block_hash_history = std::uint64_t{256};
 
-        if (number >= current_block_number)
+        if (number < 0 || number >= current_block_number)
             return {};
 
         const auto distance = static_cast<std::uint64_t>(current_block_number) -

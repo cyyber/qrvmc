@@ -11,3 +11,7 @@ set_target_properties(qrvmc-tool PROPERTIES OUTPUT_NAME qrvmc)
 set_source_files_properties(main.cpp PROPERTIES
     COMPILE_DEFINITIONS PROJECT_VERSION="${PROJECT_VERSION}")
 target_link_libraries(qrvmc-tool PRIVATE qrvmc::tooling qrvmc::loader CLI11::CLI11)
+
+if(QRVMC_INSTALL)
+    install(TARGETS qrvmc-tool EXPORT qrvmcTargets RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()

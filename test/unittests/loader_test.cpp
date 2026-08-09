@@ -7,6 +7,7 @@
 #include <qrvmc/qrvmc.h>
 #include <gtest/gtest.h>
 #include <cstring>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -28,6 +29,9 @@ extern const char* qrvmc_test_library_symbol;
 
 /// The pointer to function returned by qrvmc_test_get_symbol_address().
 extern qrvmc_create_fn qrvmc_test_create_fn;
+
+/// The number of calls to the mocked qrvmc_test_free_library().
+extern int qrvmc_test_free_library_call_count;
 }
 
 class loader : public ::testing::Test
@@ -43,6 +47,7 @@ protected:
     {
         create_count = 0;
         destroy_count = 0;
+        qrvmc_test_free_library_call_count = 0;
         supported_options.clear();
         recorded_options.clear();
     }
@@ -385,6 +390,71 @@ TEST_F(loader, load_and_create_abi_mismatch)
     EXPECT_TRUE(vm == nullptr);
     EXPECT_EQ(qrvmc_last_error_msg(), expected_error_msg);
     EXPECT_EQ(destroy_count, create_count);
+}
+
+TEST_F(loader, load_and_create_failure_unloads_library)
+{
+    setup("failure.vm", "qrvmc_create", create_failure);
+
+    qrvmc_loader_error_code ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
+    EXPECT_TRUE(qrvmc_load_and_create(qrvmc_test_library_path, &ec) == nullptr);
+    EXPECT_EQ(ec, QRVMC_LOADER_VM_CREATION_FAILURE);
+    EXPECT_EQ(qrvmc_test_free_library_call_count, 1);
+
+    // On success the library must stay loaded (the VM code lives in it).
+    setup("valid.vm", "qrvmc_create", create_vm_barebone);
+    qrvmc_test_free_library_call_count = 0;
+    auto vm = qrvmc_load_and_create(qrvmc_test_library_path, &ec);
+    EXPECT_TRUE(vm != nullptr);
+    EXPECT_EQ(ec, QRVMC_LOADER_SUCCESS);
+    EXPECT_EQ(qrvmc_test_free_library_call_count, 0);
+    if (vm)
+        qrvmc_destroy(vm);
+}
+
+TEST_F(loader, load_and_create_abi_mismatch_unloads_library)
+{
+    setup("abi1985.vm", "qrvmc_create", create_vm_with_wrong_abi);
+
+    qrvmc_loader_error_code ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
+    EXPECT_TRUE(qrvmc_load_and_create(qrvmc_test_library_path, &ec) == nullptr);
+    EXPECT_EQ(ec, QRVMC_LOADER_ABI_VERSION_MISMATCH);
+    EXPECT_EQ(destroy_count, create_count);
+    EXPECT_EQ(qrvmc_test_free_library_call_count, 1);
+}
+
+TEST_F(loader, load_and_configure_option_error_unloads_library)
+{
+    setup("path", "qrvmc_create", create_vm_with_set_option);
+
+    qrvmc_loader_error_code ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
+    EXPECT_TRUE(qrvmc_load_and_configure("path,badoption", &ec) == nullptr);
+    EXPECT_EQ(ec, QRVMC_LOADER_INVALID_OPTION_NAME);
+    EXPECT_EQ(destroy_count, create_count);
+    EXPECT_EQ(qrvmc_test_free_library_call_count, 1);
+}
+
+TEST_F(loader, last_error_msg_is_thread_local)
+{
+    setup(nullptr, nullptr, nullptr);
+
+    qrvmc_loader_error_code ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
+    EXPECT_TRUE(qrvmc_load("failing.vm", &ec) == nullptr);
+    EXPECT_EQ(ec, QRVMC_LOADER_CANNOT_OPEN);
+
+    std::thread other{[] {
+        // A fresh thread must not observe the main thread's error.
+        EXPECT_TRUE(qrvmc_last_error_msg() == nullptr);
+
+        qrvmc_loader_error_code thread_ec = QRVMC_LOADER_UNSPECIFIED_ERROR;
+        EXPECT_TRUE(qrvmc_load("failing-elsewhere.vm", &thread_ec) == nullptr);
+        EXPECT_EQ(thread_ec, QRVMC_LOADER_CANNOT_OPEN);
+        EXPECT_STREQ(qrvmc_last_error_msg(), "cannot load library");
+    }};
+    other.join();
+
+    // The other thread's load and consume must not clobber this thread's error.
+    EXPECT_STREQ(qrvmc_last_error_msg(), "cannot load library");
 }
 
 TEST_F(loader, load_and_configure_no_options)
