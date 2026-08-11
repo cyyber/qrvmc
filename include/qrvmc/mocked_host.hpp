@@ -76,8 +76,55 @@ class MockedHost : public Host
 {
 public:
     MockedHost() = default;
-    MockedHost(const MockedHost&) = delete;
-    MockedHost& operator=(const MockedHost&) = delete;
+
+    /// Copy constructor.
+    ///
+    /// Entries of recorded_calls with non-empty input keep pointers into
+    /// m_recorded_calls_inputs of the source object. Re-point them at this
+    /// object's own copies of the inputs so they stay valid independently
+    /// of the source. Note that call_result is copied as-is: both objects
+    /// then share its user-owned output buffer, which MockedHost never
+    /// frees, so the buffer's lifetime remains the user's responsibility.
+    MockedHost(const MockedHost& other)
+      : Host{other},
+        accounts{other.accounts},
+        tx_context{other.tx_context},
+        block_hash{other.block_hash},
+        call_result{other.call_result},
+        recorded_blockhashes{other.recorded_blockhashes},
+        recorded_account_accesses{other.recorded_account_accesses},
+        recorded_calls{other.recorded_calls},
+        recorded_logs{other.recorded_logs},
+        m_recorded_calls_inputs{other.m_recorded_calls_inputs}
+    {
+        // Keep the guarantee that recording more calls will not invalidate
+        // pointers into m_recorded_calls_inputs (see call()).
+        m_recorded_calls_inputs.reserve(max_recorded_calls);
+
+        for (auto& msg : recorded_calls)
+        {
+            if (msg.input_data == nullptr)
+                continue;
+            // Match by pointer identity: messages whose input_data does not
+            // reference the source's input copies are left untouched.
+            for (size_t i = 0; i < other.m_recorded_calls_inputs.size(); ++i)
+            {
+                if (msg.input_data == other.m_recorded_calls_inputs[i].data())
+                {
+                    msg.input_data = m_recorded_calls_inputs[i].data();
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Copy assignment operator.
+    MockedHost& operator=(const MockedHost& other)
+    {
+        *this = MockedHost{other};
+        return *this;
+    }
+
     MockedHost(MockedHost&&) noexcept = default;
     MockedHost& operator=(MockedHost&&) noexcept = default;
 
