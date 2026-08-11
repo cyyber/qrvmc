@@ -4,12 +4,13 @@
 
 #include <qrvmc/mocked_host.hpp>
 #include <gtest/gtest.h>
+#include <memory>
 #include <type_traits>
 
 using namespace qrvmc::literals;
 
-static_assert(!std::is_copy_constructible_v<qrvmc::MockedHost>);
-static_assert(!std::is_copy_assignable_v<qrvmc::MockedHost>);
+static_assert(std::is_copy_constructible_v<qrvmc::MockedHost>);
+static_assert(std::is_copy_assignable_v<qrvmc::MockedHost>);
 static_assert(std::is_move_constructible_v<qrvmc::MockedHost>);
 static_assert(std::is_move_assignable_v<qrvmc::MockedHost>);
 
@@ -61,6 +62,67 @@ TEST(mocked_host, recorded_calls_clear_resets_input_copies)
     EXPECT_EQ(qrvmc::bytes(host.recorded_calls.back().input_data,
                            host.recorded_calls.back().input_size),
               second_input);
+}
+
+TEST(mocked_host, copy_owns_recorded_call_inputs)
+{
+    auto orig = std::make_unique<qrvmc::MockedHost>();
+
+    const auto record_call = [](qrvmc::MockedHost& host, const qrvmc::bytes& input) {
+        qrvmc_message msg{};
+        msg.input_data = input.data();
+        msg.input_size = input.size();
+        host.call(msg);
+    };
+
+    const qrvmc::bytes short_input{1, 2, 3, 4};        // Fits in the string's SSO buffer.
+    const qrvmc::bytes long_input(100, uint8_t{0xab});  // Uses heap storage.
+    record_call(*orig, short_input);
+    record_call(*orig, long_input);
+    record_call(*orig, {});
+
+    auto copy = *orig;
+    ASSERT_EQ(copy.recorded_calls.size(), size_t{3});
+
+    // The copy must own its input buffers instead of aliasing the source's.
+    for (size_t i = 0; i < copy.recorded_calls.size(); ++i)
+    {
+        const auto& orig_msg = orig->recorded_calls[i];
+        const auto& copy_msg = copy.recorded_calls[i];
+        ASSERT_EQ(copy_msg.input_size, orig_msg.input_size);
+        if (orig_msg.input_size != 0)
+        {
+            EXPECT_NE(copy_msg.input_data, orig_msg.input_data);
+            EXPECT_EQ(qrvmc::bytes(copy_msg.input_data, copy_msg.input_size),
+                      qrvmc::bytes(orig_msg.input_data, orig_msg.input_size));
+        }
+        else
+            EXPECT_EQ(copy_msg.input_data, nullptr);
+    }
+
+    orig.reset();  // The copy must remain valid after the source is destroyed.
+    EXPECT_EQ(qrvmc::bytes(copy.recorded_calls[0].input_data, copy.recorded_calls[0].input_size),
+              short_input);
+    EXPECT_EQ(qrvmc::bytes(copy.recorded_calls[1].input_data, copy.recorded_calls[1].input_size),
+              long_input);
+
+    // Recording more calls on the copy must not invalidate earlier input pointers.
+    const auto* stable_input = copy.recorded_calls.front().input_data;
+    for (int i = 0; i < 50; ++i)
+        record_call(copy, qrvmc::bytes{9, 9, 9});
+    EXPECT_EQ(copy.recorded_calls.front().input_data, stable_input);
+    EXPECT_EQ(qrvmc::bytes(copy.recorded_calls.front().input_data,
+                           copy.recorded_calls.front().input_size),
+              short_input);
+
+    // Copy assignment follows the same rules.
+    qrvmc::MockedHost assigned;
+    assigned = copy;
+    ASSERT_EQ(assigned.recorded_calls.size(), copy.recorded_calls.size());
+    EXPECT_NE(assigned.recorded_calls.front().input_data, copy.recorded_calls.front().input_data);
+    EXPECT_EQ(qrvmc::bytes(assigned.recorded_calls.front().input_data,
+                           assigned.recorded_calls.front().input_size),
+              short_input);
 }
 
 TEST(mocked_host, recorded_call_empty_input_keeps_no_pointer)
