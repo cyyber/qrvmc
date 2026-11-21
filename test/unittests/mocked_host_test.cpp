@@ -193,6 +193,113 @@ TEST(mocked_host, storage)
     EXPECT_EQ(chost.get_storage(addr2, val3), val1);
 }
 
+TEST(mocked_host, transient_storage)
+{
+    const auto addr1 = "Q01"_address;
+    const auto addr2 = "Q02"_address;
+    const auto key1 = 0x01_bytes64;
+    const auto key2 = 0x02_bytes64;
+    const auto val1 = 0x2000000000000000000000000000000000000000000000000102030405060708_bytes64;
+    const auto val2 = 0x1000000000000000000000000000000000000000000000000000000000000000_bytes64;
+
+    qrvmc::MockedHost host;
+    const auto& chost = host;
+
+    // Null bytes returned for non-existing accounts, and querying does not create them.
+    EXPECT_EQ(chost.get_transient_storage(addr1, key1), qrvmc::bytes64{});
+    EXPECT_EQ(chost.accounts.count(addr1), 0u);
+
+    // Setting on a non-existing account creates the account, as set_storage() does.
+    host.set_transient_storage(addr1, key1, val1);
+    ASSERT_EQ(chost.accounts.count(addr1), 1u);
+    EXPECT_EQ(chost.get_transient_storage(addr1, key1), val1);
+    EXPECT_EQ(host.accounts[addr1].transient_storage.size(), 1u);
+    EXPECT_EQ(host.accounts[addr1].transient_storage[key1], val1);
+
+    // Null bytes returned for the keys not set, of an existing account too.
+    EXPECT_EQ(chost.get_transient_storage(addr1, key2), qrvmc::bytes64{});
+    EXPECT_EQ(chost.get_transient_storage(addr2, key1), qrvmc::bytes64{});
+    EXPECT_EQ(host.accounts[addr1].transient_storage.size(), 1u);
+    EXPECT_EQ(chost.accounts.count(addr2), 0u);
+
+    // The storage is not affected, including the access status of the key.
+    EXPECT_EQ(chost.get_storage(addr1, key1), qrvmc::bytes64{});
+    EXPECT_EQ(host.accounts[addr1].storage.size(), 0u);
+    EXPECT_EQ(host.access_storage(addr1, key1), QRVMC_ACCESS_COLD);
+
+    // And the storage does not affect the transient storage.
+    EXPECT_EQ(host.set_storage(addr1, key1, val2), QRVMC_STORAGE_ADDED);
+    EXPECT_EQ(host.set_storage(addr1, key2, val2), QRVMC_STORAGE_ADDED);
+    EXPECT_EQ(chost.get_transient_storage(addr1, key1), val1);
+    EXPECT_EQ(chost.get_transient_storage(addr1, key2), qrvmc::bytes64{});
+
+    // An entry can be overwritten, also with null bytes.
+    host.set_transient_storage(addr1, key1, val2);
+    EXPECT_EQ(chost.get_transient_storage(addr1, key1), val2);
+    host.set_transient_storage(addr1, key1, {});
+    EXPECT_EQ(chost.get_transient_storage(addr1, key1), qrvmc::bytes64{});
+    EXPECT_EQ(chost.get_storage(addr1, key1), val2);
+
+    // The entries can be preset and are the user's to clear to start another transaction.
+    host.accounts[addr2].transient_storage[key2] = val1;
+    EXPECT_EQ(chost.get_transient_storage(addr2, key2), val1);
+    host.accounts[addr2].transient_storage.clear();
+    EXPECT_EQ(chost.get_transient_storage(addr2, key2), qrvmc::bytes64{});
+
+    // They are copied with the host.
+    host.set_transient_storage(addr2, key2, val2);
+    const auto copy = host;
+    host.set_transient_storage(addr2, key2, val1);
+    EXPECT_EQ(copy.get_transient_storage(addr2, key2), val2);
+    EXPECT_EQ(chost.get_transient_storage(addr2, key2), val1);
+}
+
+TEST(mocked_host, transient_storage_records_account_access)
+{
+    const auto addr1 = "Qa1"_address;
+    const auto addr2 = "Qa2"_address;
+
+    qrvmc::MockedHost host;
+    const auto& chost = host;
+
+    // As for the storage, using the transient storage of an account is recorded as its access.
+    EXPECT_EQ(chost.get_transient_storage(addr1, {}), qrvmc::bytes64{});
+    host.set_transient_storage(addr2, {}, 0x01_bytes64);
+    ASSERT_EQ(host.recorded_account_accesses.size(), 2u);
+    EXPECT_EQ(host.recorded_account_accesses[0], addr1);
+    EXPECT_EQ(host.recorded_account_accesses[1], addr2);
+    EXPECT_EQ(host.access_account(addr1), QRVMC_ACCESS_WARM);
+    EXPECT_EQ(host.access_account(addr2), QRVMC_ACCESS_WARM);
+}
+
+TEST(mocked_host, access_account_precompiles)
+{
+    // The precompiles of Zond are at Q01 to Q07 (vm.PrecompiledContractsZond in go-qrl),
+    // which go-qrl has in the access list of every transaction: they are never cold.
+    // The addresses next to them are as cold as any other address before the first access.
+    qrvmc::MockedHost host;
+
+    for (const auto id : {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07})
+    {
+        qrvmc::address addr;
+        addr.bytes[63] = static_cast<uint8_t>(id);
+        EXPECT_EQ(host.access_account(addr), QRVMC_ACCESS_WARM) << id;
+    }
+
+    for (const auto id : {0x00, 0x08, 0x09, 0x0a, 0xff})
+    {
+        qrvmc::address addr;
+        addr.bytes[63] = static_cast<uint8_t>(id);
+        EXPECT_EQ(host.access_account(addr), QRVMC_ACCESS_COLD) << id;
+        EXPECT_EQ(host.access_account(addr), QRVMC_ACCESS_WARM) << id;
+    }
+
+    // All the bytes of the address count, not only the last one.
+    auto not_precompile = "Q07"_address;
+    not_precompile.bytes[0] = 0x01;
+    EXPECT_EQ(host.access_account(not_precompile), QRVMC_ACCESS_COLD);
+}
+
 TEST(mocked_host, storage_update_scenarios)
 {
     static constexpr auto addr = "Qff"_address;

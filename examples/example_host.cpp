@@ -26,6 +26,7 @@ struct account
     qrvmc::uint512be balance = {};
     std::vector<uint8_t> code;
     std::map<qrvmc::bytes64, qrvmc::bytes64> storage;
+    std::map<qrvmc::bytes64, qrvmc::bytes64> transient_storage;
 
     virtual qrvmc::bytes64 code_hash() const
     {
@@ -181,6 +182,28 @@ public:
         (void)addr;
         (void)key;
         return QRVMC_ACCESS_COLD;
+    }
+
+    // This Host is created for a single transaction (see example_host_create_context()),
+    // so the transient storage needs no clearing between transactions.
+    qrvmc::bytes64 get_transient_storage(const qrvmc::address& addr,
+                                         const qrvmc::bytes64& key) const noexcept final
+    {
+        const auto account_iter = accounts.find(addr);
+        if (account_iter == accounts.end())
+            return {};
+
+        const auto storage_iter = account_iter->second.transient_storage.find(key);
+        if (storage_iter != account_iter->second.transient_storage.end())
+            return storage_iter->second;
+        return {};
+    }
+
+    void set_transient_storage(const qrvmc::address& addr,
+                               const qrvmc::bytes64& key,
+                               const qrvmc::bytes64& value) noexcept final
+    {
+        accounts[addr].transient_storage[key] = value;
     }
 };
 

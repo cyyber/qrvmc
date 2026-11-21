@@ -5,6 +5,43 @@ Documentation of all notable changes to the **QRVMC** project.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [Unreleased]
+
+### Breaking changes
+
+- The Host interface has two more methods, `get_transient_storage` and
+  `set_transient_storage`, for the transient storage of
+  [EIP-1153](https://eips.ethereum.org/EIPS/eip-1153), which go-qrl has in
+  Zond. They are the last two members of `qrvmc_host_interface`, after
+  `access_storage`, and pure virtual methods of `qrvmc::HostInterface`, so
+  every Host has to implement them. A key follows the zero-extension
+  convention of storage keys and a value is 64 bytes. The Host starts every
+  transaction with the transient storage empty and reverts its changes
+  together with the rest of the state of a call that did not succeed.
+  The ABI version stays 3 until the next release, so the loader does not
+  yet tell apart a Host built against older headers, whose interface table
+  ends before the new methods a VM may call. Hosts and VMs must be built
+  against the same headers.
+
+### Added
+
+- `OP_TLOAD` (`0x5c`) and `OP_TSTORE` (`0x5d`) in `<qrvmc/instructions.h>`
+  and in the Zond instruction tables, as in go-qrl's instruction set: each
+  costs 100 gas (`WARM_STORAGE_READ_COST`), `TLOAD` replaces the top stack
+  item and `TSTORE` takes two.
+- `qrvmc::MockedAccount::transient_storage`, which `MockedHost` reads and
+  writes in its new Host methods. `MockedHost` does not model transactions:
+  clear the map to start another one. The example Host implements the
+  methods too.
+
+### Fixed
+
+- `MockedHost::access_account` reports as always warm the addresses of the
+  Zond precompiles only, `Q01` to `Q07`, which are the ones go-qrl puts in
+  the access list of every transaction. It did so for `Q08` and `Q09` too,
+  where go-qrl has no precompile, so the first access to either was 2500 gas
+  cheaper in a VM run on `MockedHost` than in go-qrl.
+
 ## [3.0.0] — 2026-10-25
 
 ### Breaking changes
@@ -64,6 +101,7 @@ incompatible with hosts built against this release and vice versa.
 - `QRVMC_ABI_VERSION` check must match exactly between host and VM;
   dynamic-loader callers should reject mismatches on load.
 
+[Unreleased]: https://github.com/theQRL/qrvmc/commits/main
 [3.0.0]: https://github.com/theQRL/qrvmc/releases/tag/v3.0.0
 [2.0.0]: https://github.com/theQRL/qrvmc/releases/tag/v2.0.0
 

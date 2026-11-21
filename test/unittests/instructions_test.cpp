@@ -110,4 +110,21 @@ TEST(instructions, zond_hard_fork)
     EXPECT_EQ(s[OP_PUSH0].stack_height_required, 0);
     EXPECT_EQ(s[OP_PUSH0].stack_height_change, 1);
     EXPECT_EQ(sn[OP_PUSH0], std::string{"PUSH0"});
+
+    // EIP-1153: Transient storage opcodes
+    static_assert(OP_TLOAD == 0x5c);
+    static_assert(OP_TSTORE == 0x5d);
+    EXPECT_EQ(s[OP_TLOAD].gas_cost, 100);
+    EXPECT_EQ(s[OP_TLOAD].stack_height_required, 1);
+    EXPECT_EQ(s[OP_TLOAD].stack_height_change, 0);
+    EXPECT_EQ(sn[OP_TLOAD], std::string{"TLOAD"});
+
+    EXPECT_EQ(s[OP_TSTORE].gas_cost, 100);
+    EXPECT_EQ(s[OP_TSTORE].stack_height_required, 2);
+    EXPECT_EQ(s[OP_TSTORE].stack_height_change, -2);
+    EXPECT_EQ(sn[OP_TSTORE], std::string{"TSTORE"});
+
+    // The opcode between them and PUSH0 (MCOPY of EIP-5656) is not in Zond.
+    EXPECT_EQ(s[0x5e].gas_cost, 0);
+    EXPECT_EQ(sn[0x5e], nullptr);
 }
