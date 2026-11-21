@@ -21,6 +21,20 @@ static_assert(sizeof(qrvmc_call_kind) == sizeof(int),
 static_assert(sizeof(qrvmc_revision) == sizeof(int),
               "Enum `qrvmc_revision` is not the size of int");
 
+// The Host interface is a table of callbacks which VMs index by position.
+// New callbacks go at the end: the ones of the transient storage are the last two.
+static_assert(sizeof(qrvmc_host_interface) == 15 * sizeof(qrvmc_account_exists_fn),
+              "qrvmc_host_interface is not a table of 15 callbacks");
+static_assert(offsetof(qrvmc_host_interface, access_storage) ==
+                  12 * sizeof(qrvmc_account_exists_fn),
+              "qrvmc_host_interface.access_storage has moved");
+static_assert(offsetof(qrvmc_host_interface, get_transient_storage) ==
+                  13 * sizeof(qrvmc_account_exists_fn),
+              "qrvmc_host_interface.get_transient_storage is not the 14th callback");
+static_assert(offsetof(qrvmc_host_interface, set_transient_storage) ==
+                  14 * sizeof(qrvmc_account_exists_fn),
+              "qrvmc_host_interface.set_transient_storage is not the 15th callback");
+
 static constexpr size_t optionalDataSize =
     sizeof(qrvmc_result) - offsetof(qrvmc_result, create_address);
 static_assert(optionalDataSize >= sizeof(qrvmc_result_optional_storage),

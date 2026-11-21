@@ -79,6 +79,17 @@ public:
     {
         return QRVMC_ACCESS_COLD;
     }
+
+    qrvmc::bytes64 get_transient_storage(const qrvmc::address& /*addr*/,
+                                         const qrvmc::bytes64& /*key*/) const noexcept final
+    {
+        return {};
+    }
+
+    void set_transient_storage(const qrvmc::address& /*addr*/,
+                               const qrvmc::bytes64& /*key*/,
+                               const qrvmc::bytes64& /*value*/) noexcept final
+    {}
 };
 
 TEST(cpp, address)
@@ -681,6 +692,29 @@ TEST(cpp, host)
     EXPECT_EQ(host.set_storage(a, {}, v), QRVMC_STORAGE_ASSIGNED);
     EXPECT_EQ(host.get_storage(a, {}), v);
 
+    // The transient storage goes through its own pair of Host methods
+    // and they must not be wired to the ones of the storage.
+    const auto tk = 0x1153_bytes64;
+    const auto tv = qrvmc::bytes64{{{9, 9, 9}}};
+    EXPECT_EQ(host.get_transient_storage(a, {}), qrvmc::bytes64{});
+    host.set_transient_storage(a, {}, tv);
+    host.set_transient_storage(a, tk, v);
+    EXPECT_EQ(host.get_transient_storage(a, {}), tv);
+    EXPECT_EQ(host.get_transient_storage(a, tk), v);
+    EXPECT_EQ(host.get_storage(a, {}), v);
+    EXPECT_EQ(host.get_storage(a, tk), qrvmc::bytes64{});
+    EXPECT_EQ(mockedHost.accounts[a].transient_storage.size(), size_t{2});
+    EXPECT_EQ(mockedHost.accounts[a].transient_storage[tk], v);
+
+    // The same by the C interface.
+    const qrvmc_bytes64 raw_key = tk;
+    const qrvmc_bytes64 raw_value = tv;
+    host_interface.set_transient_storage(host_context, &a, &raw_key, &raw_value);
+    EXPECT_EQ(qrvmc::bytes64{host_interface.get_transient_storage(host_context, &a, &raw_key)}, tv);
+    EXPECT_EQ(host.get_transient_storage(a, tk), tv);
+    EXPECT_EQ(qrvmc::bytes64{host_interface.get_storage(host_context, &a, &raw_key)},
+              qrvmc::bytes64{});
+
     EXPECT_TRUE(qrvmc::is_zero(host.get_balance(a)));
 
     EXPECT_EQ(host.get_code_size(a), size_t{0});
@@ -780,6 +814,63 @@ TEST(cpp, example_host_get_block_hash_range)
     constexpr auto int64_min = std::numeric_limits<int64_t>::min();
     EXPECT_EQ(get_block_hash(int64_min + 10, int64_min), qrvmc::bytes64{});
     EXPECT_EQ(get_block_hash(int64_min + 10, int64_min + 10), qrvmc::bytes64{});
+}
+
+TEST(cpp, example_host_transient_storage)
+{
+    const auto* host_interface = example_host_get_interface();
+    ASSERT_NE(host_interface, nullptr);
+
+    const auto create_context = [] {
+        return std::unique_ptr<qrvmc_host_context, decltype(&example_host_destroy_context)>{
+            example_host_create_context({}), example_host_destroy_context};
+    };
+    const auto context = create_context();
+    ASSERT_NE(context.get(), nullptr);
+
+    const qrvmc_address addr1 = "Q01"_address;
+    const qrvmc_address addr2 = "Q02"_address;
+    const qrvmc_bytes64 key1 = 0x01_bytes64;
+    const qrvmc_bytes64 key2 = 0x02_bytes64;
+    const qrvmc_bytes64 value1 = 0xaa_bytes64;
+    const qrvmc_bytes64 value2 = 0xbb_bytes64;
+    const qrvmc_bytes64 zero = {};
+
+    const auto tload = [host_interface](qrvmc_host_context* ctx, const qrvmc_address& addr,
+                                        const qrvmc_bytes64& key) {
+        return qrvmc::bytes64{host_interface->get_transient_storage(ctx, &addr, &key)};
+    };
+    const auto sload = [host_interface](qrvmc_host_context* ctx, const qrvmc_address& addr,
+                                        const qrvmc_bytes64& key) {
+        return qrvmc::bytes64{host_interface->get_storage(ctx, &addr, &key)};
+    };
+
+    EXPECT_EQ(tload(context.get(), addr1, key1), qrvmc::bytes64{});
+
+    // An entry is of a single key of a single account.
+    host_interface->set_transient_storage(context.get(), &addr1, &key1, &value1);
+    EXPECT_EQ(tload(context.get(), addr1, key1), qrvmc::bytes64{value1});
+    EXPECT_EQ(tload(context.get(), addr1, key2), qrvmc::bytes64{});
+    EXPECT_EQ(tload(context.get(), addr2, key1), qrvmc::bytes64{});
+
+    // The transient storage and the storage do not see each other.
+    EXPECT_EQ(sload(context.get(), addr1, key1), qrvmc::bytes64{});
+    host_interface->set_storage(context.get(), &addr1, &key1, &value2);
+    EXPECT_EQ(sload(context.get(), addr1, key1), qrvmc::bytes64{value2});
+    EXPECT_EQ(tload(context.get(), addr1, key1), qrvmc::bytes64{value1});
+
+    // An entry can be overwritten, also with zero.
+    host_interface->set_transient_storage(context.get(), &addr1, &key1, &value2);
+    EXPECT_EQ(tload(context.get(), addr1, key1), qrvmc::bytes64{value2});
+    host_interface->set_transient_storage(context.get(), &addr1, &key1, &zero);
+    EXPECT_EQ(tload(context.get(), addr1, key1), qrvmc::bytes64{});
+
+    // The context of another transaction starts with the empty transient storage.
+    host_interface->set_transient_storage(context.get(), &addr2, &key2, &value1);
+    const auto other_context = create_context();
+    ASSERT_NE(other_context.get(), nullptr);
+    EXPECT_EQ(tload(other_context.get(), addr2, key2), qrvmc::bytes64{});
+    EXPECT_EQ(tload(context.get(), addr2, key2), qrvmc::bytes64{value1});
 }
 
 TEST(cpp, host_call)
