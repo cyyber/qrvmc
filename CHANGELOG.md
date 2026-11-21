@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning].
   clear the map to start another one. The example Host implements the
   methods too.
 
+### Fixed
+
+- `MockedHost::access_account` reports as always warm the addresses of the
+  Zond precompiles only, `Q01` to `Q07`, which are the ones go-qrl puts in
+  the access list of every transaction. It did so for `Q08` and `Q09` too,
+  where go-qrl has no precompile, so the first access to either was 2500 gas
+  cheaper in a VM run on `MockedHost` than in go-qrl.
+
 ## [3.0.0] — 2026-10-25
 
 ### Breaking changes

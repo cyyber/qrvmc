@@ -272,6 +272,34 @@ TEST(mocked_host, transient_storage_records_account_access)
     EXPECT_EQ(host.access_account(addr2), QRVMC_ACCESS_WARM);
 }
 
+TEST(mocked_host, access_account_precompiles)
+{
+    // The precompiles of Zond are at Q01 to Q07 (vm.PrecompiledContractsZond in go-qrl),
+    // which go-qrl has in the access list of every transaction: they are never cold.
+    // The addresses next to them are as cold as any other address before the first access.
+    qrvmc::MockedHost host;
+
+    for (const auto id : {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07})
+    {
+        qrvmc::address addr;
+        addr.bytes[63] = static_cast<uint8_t>(id);
+        EXPECT_EQ(host.access_account(addr), QRVMC_ACCESS_WARM) << id;
+    }
+
+    for (const auto id : {0x00, 0x08, 0x09, 0x0a, 0xff})
+    {
+        qrvmc::address addr;
+        addr.bytes[63] = static_cast<uint8_t>(id);
+        EXPECT_EQ(host.access_account(addr), QRVMC_ACCESS_COLD) << id;
+        EXPECT_EQ(host.access_account(addr), QRVMC_ACCESS_WARM) << id;
+    }
+
+    // All the bytes of the address count, not only the last one.
+    auto not_precompile = "Q07"_address;
+    not_precompile.bytes[0] = 0x01;
+    EXPECT_EQ(host.access_account(not_precompile), QRVMC_ACCESS_COLD);
+}
+
 TEST(mocked_host, storage_update_scenarios)
 {
     static constexpr auto addr = "Qff"_address;
