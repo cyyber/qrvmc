@@ -130,4 +130,11 @@ TEST(instructions, zond_hard_fork)
     EXPECT_EQ(s[OP_MCOPY].stack_height_required, 3);
     EXPECT_EQ(s[OP_MCOPY].stack_height_change, -3);
     EXPECT_EQ(sn[OP_MCOPY], std::string{"MCOPY"});
+
+    // EIP-7939: CLZ instruction
+    static_assert(OP_CLZ == 0x1e);
+    EXPECT_EQ(s[OP_CLZ].gas_cost, 5);
+    EXPECT_EQ(s[OP_CLZ].stack_height_required, 1);
+    EXPECT_EQ(s[OP_CLZ].stack_height_change, 0);
+    EXPECT_EQ(sn[OP_CLZ], std::string{"CLZ"});
 }
