@@ -99,7 +99,7 @@ static const char* const zond_names[256] = {
     /* 0x5b */ "JUMPDEST",
     /* 0x5c */ "TLOAD",
     /* 0x5d */ "TSTORE",
-    /* 0x5e */ NULL,
+    /* 0x5e */ "MCOPY",
     /* 0x5f */ "PUSH0",
     /* 0x60 */ "PUSH1",
     /* 0x61 */ "PUSH2",
