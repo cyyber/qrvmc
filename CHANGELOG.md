@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning].
   `<qrvmc/instructions.h>` and in the Zond instruction tables, as in go-qrl's
   instruction set: it takes three stack items and has a base cost of 3 gas,
   before the cost of the words copied and of the memory expansion.
+- `OP_CLZ` (`0x1e`) of
+  [EIP-7939](https://eips.ethereum.org/EIPS/eip-7939) in
+  `<qrvmc/instructions.h>` and in the Zond instruction tables, as in go-qrl's
+  instruction set: it costs 5 gas and replaces the top stack item with the
+  number of its leading zero bits. The count is over the 512-bit word, so it
+  is 512 for zero and 256 more than the EIP's for a value below 2^256.
 - `qrvmc::MockedAccount::transient_storage`, which `MockedHost` reads and
   writes in its new Host methods. `MockedHost` does not model transactions:
   clear the map to start another one. The example Host implements the

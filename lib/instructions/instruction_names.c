@@ -35,7 +35,7 @@ static const char* const zond_names[256] = {
     /* 0x1b */ "SHL",
     /* 0x1c */ "SHR",
     /* 0x1d */ "SAR",
-    /* 0x1e */ NULL,
+    /* 0x1e */ "CLZ",
     /* 0x1f */ NULL,
     /* 0x20 */ "KECCAK256",
     /* 0x21 */ NULL,
