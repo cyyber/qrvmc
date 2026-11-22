@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning].
   and in the Zond instruction tables, as in go-qrl's instruction set: each
   costs 100 gas (`WARM_STORAGE_READ_COST`), `TLOAD` replaces the top stack
   item and `TSTORE` takes two.
+- `OP_MCOPY` (`0x5e`) of
+  [EIP-5656](https://eips.ethereum.org/EIPS/eip-5656) in
+  `<qrvmc/instructions.h>` and in the Zond instruction tables, as in go-qrl's
+  instruction set: it takes three stack items and has a base cost of 3 gas,
+  before the cost of the words copied and of the memory expansion.
 - `qrvmc::MockedAccount::transient_storage`, which `MockedHost` reads and
   writes in its new Host methods. `MockedHost` does not model transactions:
   clear the map to start another one. The example Host implements the

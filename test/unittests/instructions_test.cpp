@@ -124,7 +124,10 @@ TEST(instructions, zond_hard_fork)
     EXPECT_EQ(s[OP_TSTORE].stack_height_change, -2);
     EXPECT_EQ(sn[OP_TSTORE], std::string{"TSTORE"});
 
-    // The opcode between them and PUSH0 (MCOPY of EIP-5656) is not in Zond.
-    EXPECT_EQ(s[0x5e].gas_cost, 0);
-    EXPECT_EQ(sn[0x5e], nullptr);
+    // EIP-5656: MCOPY instruction
+    static_assert(OP_MCOPY == 0x5e);
+    EXPECT_EQ(s[OP_MCOPY].gas_cost, 3);
+    EXPECT_EQ(s[OP_MCOPY].stack_height_required, 3);
+    EXPECT_EQ(s[OP_MCOPY].stack_height_change, -3);
+    EXPECT_EQ(sn[OP_MCOPY], std::string{"MCOPY"});
 }
